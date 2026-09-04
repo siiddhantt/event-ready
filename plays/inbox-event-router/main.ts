@@ -118,8 +118,7 @@
  *     - --allow-read
  *     - --allow-write
  *     - "@resource{save-pending.ts}"
- *     - '@list_messages{.messages // []}'
- *     - '@list_messages{.nextPageToken // ""}'
+ *     - '@list_messages{.}'
  *     - '@prepare{.stdout.text}'
  *   details_new:
  *     endpoint: adapter/gmail
@@ -208,23 +207,23 @@
  *     endpoint: adapter/calendar
  *     method: calendar.events.insert
  *     depends_on: [plan_operations]
- *     for_each: $.stdout.text | fromjson | .inserts
+ *     for_each: $.stdout.text | fromjson | .inserts | map(.request_body)
  *     max_concurrency: 4
  *     params:
  *       calendarId: $calendar_id
  *       sendUpdates: none
- *       __requestBody__: $body
+ *       __requestBody__: $item
  *   patch_events:
  *     endpoint: adapter/calendar
  *     method: calendar.events.patch
  *     depends_on: [plan_operations]
- *     for_each: $.stdout.text | fromjson | .patches
+ *     for_each: $.stdout.text | fromjson | .patches | map(.request_body)
  *     max_concurrency: 4
  *     params:
  *       calendarId: $calendar_id
- *       eventId: $event_id
+ *       eventId: $id
  *       sendUpdates: none
- *       __requestBody__: $body
+ *       __requestBody__: $item
  *   commit:
  *     type: process.exec
  *     depends_on: [plan_operations, insert_events, patch_events]

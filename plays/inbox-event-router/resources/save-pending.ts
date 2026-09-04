@@ -8,13 +8,14 @@ import { PendingBatch } from "./lib/types.ts";
 
 type ListedMessage = { id?: unknown; threadId?: unknown };
 
-const [messagesRaw, nextPageToken = "", prepareRaw = ""] = Deno.args;
-const listed = JSON.parse(messagesRaw) as unknown;
+const [listingRaw = "{}", prepareRaw = ""] = Deno.args;
+const listing = JSON.parse(listingRaw) as Record<string, unknown>;
 const prepare = JSON.parse(prepareRaw) as Record<string, unknown>;
+const listed = listing.messages === undefined ? [] : listing.messages;
 if (!Array.isArray(listed)) {
   throw new Error("Gmail messages response must be an array");
 }
-if (nextPageToken) {
+if (typeof listing.nextPageToken === "string" && listing.nextPageToken) {
   throw new Error(
     "The first scan exceeded 500 messages; reduce lookback_days before retrying",
   );

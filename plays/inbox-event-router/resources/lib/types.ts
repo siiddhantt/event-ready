@@ -80,5 +80,5 @@ export type CalendarOperation = {
   event_key: string;
   action: "insert" | "patch";
   event_id: string;
-  body: Record<string, unknown>;
+  request_body: Record<string, unknown>;
 };

@@ -166,7 +166,7 @@ export async function planOperation(
         event_key: decision.event_key,
         action: "patch",
         event_id: matching.id,
-        body: eventBody(decision, now),
+        request_body: { id: matching.id, ...eventBody(decision, now) },
       },
       result: {
         message_id: decision.message_id,
@@ -211,7 +211,7 @@ export async function planOperation(
       event_key: decision.event_key,
       action: "insert",
       event_id: eventId,
-      body: { id: eventId, ...eventBody(decision, now) },
+      request_body: { id: eventId, ...eventBody(decision, now) },
     },
     result: {
       message_id: decision.message_id,

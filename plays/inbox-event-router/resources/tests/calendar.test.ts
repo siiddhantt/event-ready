@@ -3,8 +3,17 @@ import {
   planOperation,
   semanticDuplicate,
 } from "../lib/calendar.ts";
+import { normalizeFanOut } from "../lib/fanout.ts";
 import { UpsertDecision } from "../lib/types.ts";
 import { assert, assertEquals } from "./assert.ts";
+
+Deno.test("normalizes singleton and multi-item lookup fan-outs", () => {
+  const first = { items: [{ id: "one" }] };
+  const second = { items: [{ id: "two" }] };
+  assertEquals(normalizeFanOut(first), [first]);
+  assertEquals(normalizeFanOut([first, second]), [first, second]);
+  assertEquals(normalizeFanOut(null), []);
+});
 
 const decision: UpsertDecision = {
   message_id: "m1",
@@ -35,10 +44,13 @@ Deno.test("plans a deterministic private insert", async () => {
   );
   assert(first.operation?.action === "insert");
   assertEquals(first.operation?.event_id, second.operation?.event_id);
-  assertEquals(first.operation?.body.visibility, "private");
-  assertEquals("attendees" in (first.operation?.body ?? {}), false);
+  assertEquals(first.operation?.request_body.visibility, "private");
+  assertEquals("attendees" in (first.operation?.request_body ?? {}), false);
   assertEquals(
-    ((first.operation?.body.extendedProperties as Record<string, unknown>)
+    ((first.operation?.request_body.extendedProperties as Record<
+      string,
+      unknown
+    >)
       .private as Record<string, unknown>).eventReadyMeetingUrl,
     "https://meet.google.com/abc-defg-hij",
   );
@@ -56,6 +68,7 @@ Deno.test("patches only an event carrying the suite key", async () => {
   );
   assertEquals(planned.operation?.action, "patch");
   assertEquals(planned.operation?.event_id, "owned");
+  assertEquals(planned.operation?.request_body.id, "owned");
 });
 
 Deno.test("preserves a matching user-owned event", async () => {

@@ -4,17 +4,18 @@ import {
   withStateLock,
   writeState,
 } from "./lib/state.ts";
+import { normalizeFanOut } from "./lib/fanout.ts";
 
 const [planRaw = "", insertsRaw = "[]", patchesRaw = "[]"] = Deno.args;
 const plan = JSON.parse(planRaw) as Record<string, unknown>;
-const inserts = JSON.parse(insertsRaw) as unknown[];
-const patches = JSON.parse(patchesRaw) as unknown[];
+const inserts = normalizeFanOut(JSON.parse(insertsRaw));
+const patches = normalizeFanOut(JSON.parse(patchesRaw));
 const plannedInserts = Array.isArray(plan.inserts) ? plan.inserts : [];
 const plannedPatches = Array.isArray(plan.patches) ? plan.patches : [];
-if (!Array.isArray(inserts) || inserts.length !== plannedInserts.length) {
+if (inserts.length !== plannedInserts.length) {
   throw new Error("Not every planned insert completed");
 }
-if (!Array.isArray(patches) || patches.length !== plannedPatches.length) {
+if (patches.length !== plannedPatches.length) {
   throw new Error("Not every planned update completed");
 }
 const runToken = plan.run_token;

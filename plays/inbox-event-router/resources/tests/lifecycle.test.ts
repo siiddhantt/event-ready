@@ -28,8 +28,7 @@ Deno.test("collect and all-ignore apply advance one batch exactly once", async (
   const pending = await run(
     "save-pending.ts",
     [
-      JSON.stringify([{ id: "m1", threadId: "t1" }]),
-      "",
+      JSON.stringify({ messages: [{ id: "m1", threadId: "t1" }] }),
       JSON.stringify(prepared),
     ],
     stateDirectory,
@@ -103,5 +102,96 @@ Deno.test("collect and all-ignore apply advance one batch exactly once", async (
   );
   assertEquals(state.pending, null);
   assertEquals(state.processed_message_ids, ["m1"]);
+  await Deno.remove(stateDirectory, { recursive: true });
+});
+
+Deno.test("an empty Gmail listing advances the cursor as idle", async () => {
+  const stateDirectory = await Deno.makeTempDir();
+  const prepared = await run(
+    "prepare.ts",
+    ["collect", "primary", "7"],
+    stateDirectory,
+  );
+  const result = await run(
+    "save-pending.ts",
+    [JSON.stringify({ resultSizeEstimate: 0 }), JSON.stringify(prepared)],
+    stateDirectory,
+  );
+  assertEquals(result.status, "idle");
+  assertEquals(result.message_ids, []);
+  const state = JSON.parse(
+    await Deno.readTextFile(`${stateDirectory}/state.json`),
+  );
+  assertEquals(state.pending, null);
+  assertEquals(state.cursor_epoch_seconds, prepared.next_cursor_epoch_seconds);
+  await Deno.remove(stateDirectory, { recursive: true });
+});
+
+Deno.test("a singleton Calendar write commits its one-event batch", async () => {
+  const stateDirectory = await Deno.makeTempDir();
+  const prepared = await run(
+    "prepare.ts",
+    ["collect", "primary", "7"],
+    stateDirectory,
+  );
+  const pending = await run(
+    "save-pending.ts",
+    [
+      JSON.stringify({ messages: [{ id: "m2", threadId: "t2" }] }),
+      JSON.stringify(prepared),
+    ],
+    stateDirectory,
+  );
+  const validated = await run(
+    "validate-decisions.ts",
+    [
+      JSON.stringify({
+        schema_version: 1,
+        run_token: pending.token,
+        decisions: [{
+          message_id: "m2",
+          action: "upsert",
+          event_key: "gmail.t2",
+          source_thread_id: "t2",
+          kind: "meeting",
+          title: "Event",
+          confidence: 0.99,
+          evidence: ["Exact source evidence"],
+          start: {
+            dateTime: "2026-09-08T10:00:00+05:30",
+            timeZone: "Asia/Kolkata",
+          },
+          end: {
+            dateTime: "2026-09-08T11:00:00+05:30",
+            timeZone: "Asia/Kolkata",
+          },
+        }],
+      }),
+      "primary",
+    ],
+    stateDirectory,
+  );
+  const plan = await run(
+    "plan-operations.ts",
+    [
+      JSON.stringify(validated),
+      JSON.stringify({ items: [] }),
+      JSON.stringify({ items: [] }),
+    ],
+    stateDirectory,
+  );
+  const receipt = await run(
+    "commit.ts",
+    [JSON.stringify(plan), JSON.stringify({ id: "created" }), "[]"],
+    stateDirectory,
+  );
+  assertEquals(receipt.status, "applied");
+  assertEquals(receipt.inserted, 1);
+  assertEquals(receipt.updated, 0);
+  const state = JSON.parse(
+    await Deno.readTextFile(`${stateDirectory}/state.json`),
+  );
+  assertEquals(state.pending, null);
+  assertEquals(state.processed_message_ids, ["m2"]);
   await Deno.remove(stateDirectory, { recursive: true });
 });

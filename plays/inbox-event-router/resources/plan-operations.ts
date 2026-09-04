@@ -1,4 +1,5 @@
 import { planOperation } from "./lib/calendar.ts";
+import { normalizeFanOut } from "./lib/fanout.ts";
 import { CalendarEvent, UpsertDecision } from "./lib/types.ts";
 
 type Lookup = { items?: unknown };
@@ -7,13 +8,10 @@ const [validatedRaw = "", ownedRaw = "[]", nearbyRaw = "[]"] = Deno.args;
 const validated = JSON.parse(validatedRaw) as Record<string, unknown>;
 const decisions = validated.decisions;
 const eventDecisions = validated.event_decisions;
-const ownedLookups = JSON.parse(ownedRaw) as Lookup[];
-const nearbyLookups = JSON.parse(nearbyRaw) as Lookup[];
+const ownedLookups = normalizeFanOut(JSON.parse(ownedRaw)) as Lookup[];
+const nearbyLookups = normalizeFanOut(JSON.parse(nearbyRaw)) as Lookup[];
 if (!Array.isArray(decisions) || !Array.isArray(eventDecisions)) {
   throw new Error("Validated decisions are unavailable");
-}
-if (!Array.isArray(ownedLookups) || !Array.isArray(nearbyLookups)) {
-  throw new Error("Calendar lookups are unavailable");
 }
 if (
   ownedLookups.length !== eventDecisions.length ||
