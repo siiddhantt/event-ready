@@ -1,0 +1,7 @@
+{
+  "status": "applied",
+  "processed": 1,
+  "inserted": 0,
+  "updated": 0,
+  "results": [{ "message_id": "fixture-message", "outcome": "ignored" }]
+}

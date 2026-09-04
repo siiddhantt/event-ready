@@ -1,0 +1,10 @@
+{
+  "status": "ready",
+  "config": {
+    "schema_version": 1,
+    "roots": ["/projects"],
+    "editor": { "kind": "code", "command": "code" },
+    "browser": "default",
+    "mappings": {}
+  }
+}

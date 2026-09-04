@@ -1,0 +1,12 @@
+{
+  "run_token": "fixture-token",
+  "calendar_id": "primary",
+  "decisions": [
+    {
+      "message_id": "fixture-message",
+      "action": "ignore",
+      "reason": "Fixture non-event"
+    }
+  ],
+  "event_decisions": []
+}

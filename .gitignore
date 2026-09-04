@@ -4,6 +4,7 @@ Thumbs.db
 .env.*
 !.env.example
 .rote/
+.rote-flow-lint.json
 coverage/
 dist/
 node_modules/

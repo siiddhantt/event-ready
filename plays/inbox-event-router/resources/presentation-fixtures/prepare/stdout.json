@@ -1,0 +1,12 @@
+{
+  "mode": "collect",
+  "calendar_id": "primary",
+  "lookback_days": 7,
+  "query": "newer_than:7d -in:spam -in:trash",
+  "collected_at": "2026-09-04T06:00:00.000Z",
+  "next_cursor_epoch_seconds": 1788501600,
+  "needs_listing": true,
+  "pending": null,
+  "calendar_min": "2026-08-05T06:00:00.000Z",
+  "calendar_max": "2027-10-09T06:00:00.000Z"
+}

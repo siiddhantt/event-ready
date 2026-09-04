@@ -1,0 +1,6 @@
+{
+  "status": "opened",
+  "opened": ["editor", "browser", "browser"],
+  "commands": [],
+  "plan": { "status": "ready" }
+}

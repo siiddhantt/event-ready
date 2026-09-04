@@ -1,0 +1,15 @@
+{
+  "id": "fixture-message",
+  "threadId": "fixture-thread",
+  "internalDate": "1788501600000",
+  "snippet": "Interview on Tuesday",
+  "payload": {
+    "mimeType": "text/plain",
+    "headers": [
+      { "name": "Subject", "value": "Interview details" },
+      { "name": "From", "value": "Acme Recruiting <jobs@example.test>" },
+      { "name": "Date", "value": "Fri, 4 Sep 2026 11:30:00 +0530" }
+    ],
+    "body": { "data": "SW50ZXJ2aWV3IG9uIFR1ZXNkYXkgYXQgMTA6MDAgSVNULg" }
+  }
+}

@@ -1,0 +1,19 @@
+schema_version = 1
+
+[[tools]]
+id = "deno-runtime"
+command = "deno"
+required = true
+
+[[tools.install]]
+manager = "rote"
+command = ["rote", "deno", "install"]
+
+[[tools]]
+id = "rote-cli"
+command = "rote"
+required = true
+
+[[tools.install]]
+manager = "official"
+command = ["bash", "-c", "ROTE_YES=1 bash -c \"$(curl -fsSL https://getrote.dev/install)\""]

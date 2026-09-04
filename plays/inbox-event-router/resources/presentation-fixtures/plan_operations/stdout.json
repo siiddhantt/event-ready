@@ -1,0 +1,12 @@
+{
+  "run_token": "fixture-token",
+  "inserts": [],
+  "patches": [],
+  "results": [
+    {
+      "message_id": "fixture-message",
+      "outcome": "ignored",
+      "reason": "Fixture non-event"
+    }
+  ]
+}

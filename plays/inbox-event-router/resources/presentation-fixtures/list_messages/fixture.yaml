@@ -1,0 +1,3 @@
+schema_version: 1
+kind: adapter
+body: resources/presentation-fixtures/list_messages/body.json

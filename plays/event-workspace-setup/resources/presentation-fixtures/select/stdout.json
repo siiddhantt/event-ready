@@ -1,0 +1,24 @@
+{
+  "status": "ready",
+  "event": {
+    "id": "fixture-event",
+    "title": "Acme interview",
+    "start": { "dateTime": "2026-09-04T15:00:00+05:30" },
+    "end": { "dateTime": "2026-09-04T16:00:00+05:30" },
+    "company": "Acme",
+    "meeting_url": "https://meet.google.com/abc-defg-hij",
+    "calendar_url": null,
+    "source_email_url": null
+  },
+  "mapping_key": "acme",
+  "project": {
+    "name": "acme",
+    "path": "/projects/acme",
+    "remote": "git@github.com:example/acme.git",
+    "web_url": "https://github.com/example/acme"
+  },
+  "links": [
+    "https://meet.google.com/abc-defg-hij",
+    "https://github.com/example/acme"
+  ]
+}

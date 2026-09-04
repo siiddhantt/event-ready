@@ -1,0 +1,12 @@
+{
+  "repositories": [
+    {
+      "name": "acme",
+      "path": "/projects/acme",
+      "remote": "git@github.com:example/acme.git",
+      "web_url": "https://github.com/example/acme"
+    }
+  ],
+  "count": 1,
+  "capped": false
+}
