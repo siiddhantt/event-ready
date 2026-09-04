@@ -4,14 +4,13 @@ async function run(
   script: string,
   args: string[],
   configDirectory: string,
-  extraEnv: Record<string, string> = {},
 ): Promise<Record<string, unknown>> {
   const path = decodeURIComponent(
     new URL(`../${script}`, import.meta.url).pathname,
   );
   const output = await new Deno.Command(Deno.execPath(), {
     args: ["run", "--allow-all", path, ...args],
-    env: { EVENT_READY_WORKSPACE_CONFIG_DIR: configDirectory, ...extraEnv },
+    env: { EVENT_READY_WORKSPACE_CONFIG_DIR: configDirectory },
     stdout: "piped",
     stderr: "piped",
   }).output();
@@ -40,6 +39,14 @@ Deno.test("setup, discover, plan, dry-launch, and remember form one safe lifecyc
     [JSON.stringify(configured)],
     configDirectory,
   );
+  const emptyPlan = await run("select.ts", [
+    JSON.stringify(configured),
+    JSON.stringify({ resultSizeEstimate: 0 }),
+    JSON.stringify(scanned),
+    "",
+    "",
+  ], configDirectory);
+  assertEquals(emptyPlan.status, "no_event");
   const starts = new Date(Date.now() + 3600_000);
   const ends = new Date(starts.getTime() + 3600_000);
   const events = [{
@@ -64,12 +71,12 @@ Deno.test("setup, discover, plan, dry-launch, and remember form one safe lifecyc
   assertEquals((plan.project as Record<string, unknown>).path, project);
   const launched = await run(
     "launch.ts",
-    [JSON.stringify(configured), JSON.stringify(plan)],
+    [JSON.stringify(configured), JSON.stringify(plan), "true"],
     configDirectory,
-    { EVENT_READY_LAUNCH_DRY_RUN: "1" },
   );
-  assertEquals(launched.status, "opened");
-  assertEquals(launched.opened, ["editor", "browser", "browser"]);
+  assertEquals(launched.status, "preview");
+  assertEquals(launched.opened, []);
+  assertEquals((launched.commands as unknown[]).length, 3);
   const remembered = await run(
     "remember.ts",
     [JSON.stringify(plan), project],

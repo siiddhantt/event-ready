@@ -6,12 +6,14 @@
  * description: Selects an upcoming Google Calendar event, matches its repository only inside approved roots, and safely opens the configured editor and external browser links.
  * provenance:
  *   author: siiddhantt
+ * tags: &discovery_tags [typescript, google-calendar, workspace, editor, meetings, effect-local-write]
+ * discoverability: &discoverability { tags: *discovery_tags }
  * metadata:
  *   rote_version: 0.79.0
  *   version: 0.1.0
  *   status: draft
  *   kind: atomic
- *   flow_type: sequential
+ *   flow_type: parallel
  *   execution_model: steps_with_presentation
  *   format: typescript
  *   requires_endpoints: [adapter/calendar]
@@ -33,8 +35,7 @@
  *       credential_names: [CALENDAR_TOKEN]
  *       scopes: [https://www.googleapis.com/auth/calendar.events.readonly]
  *       preflight_step: auth_calendar
- *   discoverability:
- *     tags: [typescript, google-calendar, workspace, editor, meetings, effect-local-write]
+ *   discoverability: *discoverability
  *   contract:
  *     atomic: true
  *     input: { type: none }
@@ -94,6 +95,11 @@
  *   required: false
  *   default: false
  *   description: Remember the explicit project override for this event's company or title.
+ * - name: dry_run
+ *   param_type: boolean
+ *   required: false
+ *   default: false
+ *   description: Preview the exact app and link launches without opening anything.
  * steps:
  *   configure:
  *     type: process.exec
@@ -155,7 +161,7 @@
  *     - --allow-read
  *     - "@resource{select.ts}"
  *     - '@configure{.stdout.text}'
- *     - '@events{.items // []}'
+ *     - '@events{.}'
  *     - '@scan{.stdout.text}'
  *     - $event_id
  *     - $project
@@ -174,6 +180,7 @@
  *     - "@resource{launch.ts}"
  *     - '@configure{.stdout.text}'
  *     - '@select{.stdout.text}'
+ *     - $dry_run
  *     execution:
  *       mode: deferred
  *       condition:
@@ -271,6 +278,13 @@ if (mode === "setup") {
     out.human("The event was selected, but no configured app could be opened.");
   } else if (status === "nothing_to_open") {
     out.human("The event was selected, but it has no safe workspace target.");
+  } else if (status === "preview") {
+    const commands = Array.isArray(launched.commands)
+      ? launched.commands.length
+      : 0;
+    out.human(
+      `Previewed ${commands} app or link launches; nothing was opened.`,
+    );
   } else if (status === "partial") {
     const opened = Array.isArray(launched.opened) ? launched.opened.length : 0;
     out.human(
@@ -288,6 +302,7 @@ if (mode === "setup") {
     plan: selected,
     opened: launched.opened ?? [],
     failures: launched.failures ?? [],
+    commands: launched.commands ?? [],
     remembered,
   });
 }

@@ -11,7 +11,13 @@ const [
 ] = Deno.args;
 const wrapper = JSON.parse(configurationRaw) as Record<string, unknown>;
 const config = parseConfig(wrapper.config);
-const events = JSON.parse(eventsRaw) as unknown;
+const eventsResponse = JSON.parse(eventsRaw) as unknown;
+const events = Array.isArray(eventsResponse)
+  ? eventsResponse
+  : eventsResponse && typeof eventsResponse === "object" &&
+      Array.isArray((eventsResponse as Record<string, unknown>).items)
+  ? (eventsResponse as Record<string, unknown>).items
+  : [];
 const repositoryWrapper = JSON.parse(repositoriesRaw) as Record<
   string,
   unknown

@@ -3,9 +3,8 @@
 Two small Rote Plays turn event email into a safe Calendar entry, then open the
 right workspace when the event begins.
 
-Status: implemented as a draft. Automated checks and live Gmail/Calendar reads
-pass. Rote 0.79 currently strips the required Calendar write scope during OAuth
-setup, so portable write acceptance is blocked until that setup path is fixed.
+Status: draft pending one clean-machine OAuth installation test. Automated and
+live Gmail/Calendar acceptance pass on the development machine.
 
 | Play                    | Purpose                                                                                                                                                 |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -23,15 +22,16 @@ This Play deliberately uses two calls:
 3. `apply` validates the complete decision envelope, checks for duplicates
    again, and performs only the approved private Calendar writes.
 
-The Play requires the least-privilege `calendar.events.owned` grant. In Rote
-0.79, adapter setup and bare reauthorization currently grant only read access;
-do not publish this Play until the write grant works through the normal setup
-flow.
+The Play requires the least-privilege `calendar.events.owned` grant.
 
 ```sh
 rote play run ./plays/inbox-event-router/main.ts mode=collect calendar_id=primary lookback_days=7
 rote play run ./plays/inbox-event-router/main.ts mode=apply calendar_id=primary decisions_json='<agent-envelope>'
 ```
+
+The first command is the direct terminal test. It intentionally stops after
+collection because Rote executes the Play but does not classify email itself.
+An agent must review every returned message and make the second call.
 
 The Play never stores email bodies, adds guests, sends mail, RSVPs, registers,
 or deletes Calendar events. Ambiguous messages must be ignored or explicitly
@@ -49,8 +49,14 @@ relevant Calendar event:
 
 ```sh
 rote play run ./plays/event-workspace-setup/main.ts mode=setup project_roots='["/Users/me/projects"]' editor=code browser=default
+rote play run ./plays/event-workspace-setup/main.ts mode=run calendar_id=primary horizon_hours=24 dry_run=true
 rote play run ./plays/event-workspace-setup/main.ts mode=run calendar_id=primary horizon_hours=24
 ```
+
+Use `dry_run=true` first to display the exact editor and HTTPS links without
+opening anything. On WSL, use a root such as
+`["/mnt/d/Development/Projects"]`; on macOS, use a root such as
+`["/Users/me/Developer"]`.
 
 Windows, macOS, WSL, and Linux launch adapters are included. Repository
 discovery stays inside approved roots. An ambiguous match opens nothing and

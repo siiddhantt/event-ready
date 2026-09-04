@@ -6,7 +6,7 @@ import {
   LaunchRequest,
 } from "./lib/launch.ts";
 
-const [configurationRaw = "", planRaw = ""] = Deno.args;
+const [configurationRaw = "", planRaw = "", dryRunRaw = "false"] = Deno.args;
 const configuration = JSON.parse(configurationRaw) as Record<string, unknown>;
 const config = parseConfig(configuration.config);
 const plan = JSON.parse(planRaw) as Record<string, unknown>;
@@ -24,6 +24,16 @@ const links = Array.isArray(plan.links)
   : [];
 for (const link of links) {
   commands.push({ kind: "browser", ...browserCommand(config.browser, link) });
+}
+if (dryRunRaw === "true") {
+  console.log(JSON.stringify({
+    status: "preview",
+    opened: [],
+    failures: [],
+    commands,
+    plan,
+  }));
+  Deno.exit(0);
 }
 const { opened, failures } = executeLaunches(commands);
 console.error(

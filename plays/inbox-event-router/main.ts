@@ -6,12 +6,14 @@
  * description: Collects bounded new Gmail messages for mandatory agent classification, then safely upserts verified private Google Calendar events and reminders without duplicates.
  * provenance:
  *   author: siiddhantt
+ * tags: &discovery_tags [typescript, gmail, google-calendar, reminders, event-triage, effect-write]
+ * discoverability: &discoverability { tags: *discovery_tags }
  * metadata:
  *   rote_version: 0.79.0
  *   version: 0.1.0
  *   status: draft
  *   kind: atomic
- *   flow_type: sequential
+ *   flow_type: parallel
  *   execution_model: steps_with_presentation
  *   format: typescript
  *   requires_endpoints:
@@ -49,8 +51,7 @@
  *       credential_names: [CALENDAR_TOKEN]
  *       scopes: [https://www.googleapis.com/auth/calendar.events.owned]
  *       preflight_step: auth_calendar
- *   discoverability:
- *     tags: [typescript, gmail, google-calendar, reminders, event-triage, effect-write]
+ *   discoverability: *discoverability
  *   contract:
  *     atomic: true
  *     input: { type: none }

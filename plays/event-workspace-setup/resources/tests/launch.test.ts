@@ -1,4 +1,9 @@
-import { browserCommand, executeLaunches } from "../lib/launch.ts";
+import { WorkspaceConfig } from "../lib/config.ts";
+import {
+  browserCommand,
+  editorCommand,
+  executeLaunches,
+} from "../lib/launch.ts";
 import { assertEquals, assertThrows } from "./assert.ts";
 
 Deno.test("uses shell-free Windows default launching", () => {
@@ -15,6 +20,20 @@ Deno.test("uses explicit macOS browser application", () => {
   assertEquals(browserCommand("chrome", "https://example.com", "darwin"), {
     command: "open",
     args: ["-a", "Google Chrome", "https://example.com/"],
+  });
+});
+
+Deno.test("uses native macOS editor application launching", () => {
+  const config: WorkspaceConfig = {
+    schema_version: 1,
+    roots: ["/Users/me/projects"],
+    editor: { kind: "code", command: "code" },
+    browser: "default",
+    mappings: {},
+  };
+  assertEquals(editorCommand(config, "/Users/me/projects/app", "darwin"), {
+    command: "open",
+    args: ["-a", "Visual Studio Code", "/Users/me/projects/app"],
   });
 });
 

@@ -34,7 +34,19 @@ function safeUrl(value: string): string {
 export function editorCommand(
   config: WorkspaceConfig,
   project: string,
+  platform: LaunchPlatform = runtimePlatform(),
 ): CommandSpec {
+  if (platform === "darwin" && config.editor.kind !== "custom") {
+    const applications = {
+      code: "Visual Studio Code",
+      cursor: "Cursor",
+      zed: "Zed",
+    };
+    return {
+      command: "open",
+      args: ["-a", applications[config.editor.kind], project],
+    };
+  }
   const args = config.editor.kind === "code" || config.editor.kind === "cursor"
     ? ["--new-window", project]
     : [project];
@@ -114,7 +126,6 @@ export function browserCommand(
 }
 
 export function spawnDetached(spec: CommandSpec): void {
-  if (Deno.env.get("EVENT_READY_LAUNCH_DRY_RUN") === "1") return;
   const child = new Deno.Command(spec.command, {
     args: spec.args,
     stdin: "null",
