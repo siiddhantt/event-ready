@@ -1,0 +1,13 @@
+.DS_Store
+Thumbs.db
+.env
+.env.*
+!.env.example
+.rote/
+coverage/
+dist/
+node_modules/
+__pycache__/
+*.py[cod]
+*.sqlite*
+*.log
