@@ -9,7 +9,7 @@ Status: design approval. No Play implementation has been committed yet.
 
 ## Approval checklist
 
-Reply with the item IDs you approve, reject, or want changed. The recommended first version is `A01-A12` and `B01-B11`; `A13-A14` and `B12` are optional.
+Reply with the item IDs you approve, reject, or want changed. The recommended first version is `A01-A12`, `A15H`, and `B01-B11`; `A13-A14` and `B12` are optional. Choose exactly one `A15` classifier mode.
 
 ### Play A — `inbox-event-router`
 
@@ -27,6 +27,9 @@ Reply with the item IDs you approve, reject, or want changed. The recommended fi
 - [ ] **A12 — Raspberry Pi operation.** Keep owner-private local state, produce a small audit summary, retry temporary failures safely, and run quietly from a systemd timer every 15 minutes.
 - [ ] **A13 — Google Tasks companion (optional).** Also create a Google Task for actionable tests/deadlines; Calendar remains the notification source of truth.
 - [ ] **A14 — Gmail push mode (optional, later).** Add Gmail push notifications for faster detection while retaining scheduled polling as recovery.
+- [ ] **A15H — Hybrid classifier (recommended).** Handle structured invitations and strong event evidence deterministically; send only ambiguous candidates to a configured agent/model and require schema-valid evidence before acting.
+- [ ] **A15R — Rules-only classifier.** Use no model or agent. This is cheaper and fully deterministic but will miss unusual wording and cannot reliably understand every event email.
+- [ ] **A15A — Agent-first classifier.** Let a scheduled agent interpret every candidate. This has broader recall but adds model availability, cost, latency, and more variable output.
 
 ### Play B — `event-workspace-setup`
 
