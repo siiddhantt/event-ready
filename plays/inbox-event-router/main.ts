@@ -47,7 +47,7 @@
  *     adapter/calendar:
  *       protocol: google_discovery
  *       credential_names: [CALENDAR_TOKEN]
- *       scopes: [https://www.googleapis.com/auth/calendar.events]
+ *       scopes: [https://www.googleapis.com/auth/calendar.events.owned]
  *       preflight_step: auth_calendar
  *   discoverability:
  *     tags: [typescript, gmail, google-calendar, reminders, event-triage, effect-write]
