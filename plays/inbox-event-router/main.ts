@@ -280,6 +280,7 @@ const savePendingStep = ctx.step(stepName("save_pending"));
 const detailsNewStep = ctx.step(stepName("details_new"));
 const detailsPendingStep = ctx.step(stepName("details_pending"));
 const calendarSnapshotStep = ctx.step(stepName("calendar_snapshot"));
+const validateDecisionsStep = ctx.step(stepName("validate_decisions"));
 const commitStep = ctx.step(stepName("commit"));
 
 function completedBody(step: typeof prepareStep): unknown | null {
@@ -343,7 +344,25 @@ if (mode === "collect") {
   out.result(result);
 } else {
   const receipt = processJson(commitStep);
-  if (!receipt) throw new Error("Apply receipt was unavailable");
+  if (!receipt) {
+    const rejected = validateDecisionsStep.outcome.status === "failed";
+    const detail = rejected
+      ? validateDecisionsStep.outcome.output.message
+      : "Apply did not reach its commit step; inspect the run before retrying.";
+    out.human(
+      rejected
+        ? `Agent decisions were rejected: ${detail}\nNo Calendar writes occurred.`
+        : detail,
+    );
+    out.summary(rejected ? `Inbox event router: rejected — ${detail}` : detail);
+    out.result({
+      status: rejected ? "rejected" : "incomplete",
+      stage: rejected ? "validate_decisions" : "apply",
+      detail,
+      calendar_writes: rejected ? 0 : "unknown",
+    });
+    Deno.exit(0);
+  }
   out.human(
     `Applied ${receipt.processed ?? 0} decisions: ${
       receipt.inserted ?? 0
