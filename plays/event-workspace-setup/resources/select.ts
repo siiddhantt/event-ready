@@ -1,6 +1,7 @@
 import { parseConfig } from "./lib/config.ts";
 import { buildWorkspacePlan } from "./lib/match.ts";
 import { Repository } from "./lib/repositories.ts";
+import { basename, dirname, join, resolve } from "node:path";
 
 const [
   configurationRaw = "",
@@ -40,11 +41,15 @@ if (repositoryWrapper.capped && !project) {
   );
 }
 const projectPath = project
-  ? await Deno.realPath(project).catch((error) => {
-    if (
-      error instanceof Deno.errors.NotFound &&
-      config.projects?.some((p) => p.path === project)
-    ) return project;
+  ? await Deno.realPath(project).catch(async (error) => {
+    if (error instanceof Deno.errors.NotFound) {
+      const requested = resolve(project);
+      const canonical = join(
+        await Deno.realPath(dirname(requested)),
+        basename(requested),
+      );
+      if (config.projects?.some((p) => p.path === canonical)) return canonical;
+    }
     throw error;
   })
   : "";

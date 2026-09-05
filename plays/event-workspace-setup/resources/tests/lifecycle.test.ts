@@ -18,6 +18,59 @@ async function run(
   return JSON.parse(new TextDecoder().decode(output.stdout));
 }
 
+Deno.test("a missing configured repo resolves through the same parent symlink at setup and run", async () => {
+  const root = await Deno.realPath(await Deno.makeTempDir());
+  try {
+    await Deno.mkdir(`${root}/projects`);
+    await Deno.symlink(`${root}/projects`, `${root}/alias`, { type: "dir" });
+    const project = `${root}/alias/portfolio`;
+    const configured = await run("configure.ts", [
+      "setup",
+      JSON.stringify([`${root}/alias`]),
+      "code",
+      "default",
+      "",
+      "https://github.com/example/portfolio",
+      project,
+      "true",
+    ], `${root}/config`);
+    const scanned = await run(
+      "scan.ts",
+      [JSON.stringify(configured)],
+      `${root}/config`,
+    );
+    const events = [{
+      id: "interview",
+      summary: "Portfolio interview",
+      start: { dateTime: new Date(Date.now() + 3600_000).toISOString() },
+    }];
+    const plan = await run("select.ts", [
+      JSON.stringify(configured),
+      JSON.stringify(events),
+      JSON.stringify(scanned),
+      "interview",
+      project,
+    ], `${root}/config`);
+    assertEquals(plan.status, "ready");
+    assertEquals(
+      (plan.project as Record<string, unknown>).path,
+      `${root}/projects/portfolio`,
+    );
+    const bootstrap = await run("bootstrap.ts", [
+      JSON.stringify(configured),
+      JSON.stringify(plan),
+      "true",
+    ], `${root}/config`);
+    assertEquals(bootstrap.status, "preview");
+    assertEquals(
+      await Deno.stat(`${root}/projects/portfolio`).catch(() => null),
+      null,
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
 Deno.test("setup, discover, plan, dry-launch, and remember form one safe lifecycle", async () => {
   const root = await Deno.realPath(await Deno.makeTempDir());
   const configDirectory = await Deno.makeTempDir();

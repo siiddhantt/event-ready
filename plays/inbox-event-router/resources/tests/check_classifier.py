@@ -5,8 +5,12 @@ import json
 import os
 from pathlib import Path
 import shutil
+import subprocess
 import tempfile
-from run_inbox import ROOT, classify
+import sys
+sys.dont_write_bytecode = True
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from runner import RESOURCES, classify
 
 now = datetime.now(timezone.utc).replace(microsecond=0)
 day = (now + timedelta(days=3)).date().isoformat()
@@ -30,6 +34,10 @@ collection = {"status": "needs_agent_decision", "run_token": "synthetic-evaluati
                                       "run_token": "synthetic-evaluation", "decisions": "One per message"}}}
 env = dict(os.environ)
 env["PATH"] = str(Path.home() / ".local/bin") + os.pathsep + env.get("PATH", "")
+deno = shutil.which("deno", path=env["PATH"])
+contract_module = (RESOURCES.parent / "lib/contract.ts").as_uri()
+contract = subprocess.run([deno, "eval", f'import {{decisionContract}} from {json.dumps(contract_module)}; console.log(JSON.stringify(decisionContract("synthetic-evaluation")));'], capture_output=True, text=True, env=env, check=True)
+collection["decision_contract"] = json.loads(contract.stdout)
 with tempfile.TemporaryDirectory(prefix="event-ready-eval-") as temp:
     output = classify(collection, env=env, cwd=temp, codex=shutil.which("codex", path=env["PATH"]))
     envelope = json.loads(output.read_text())
@@ -44,13 +52,19 @@ with tempfile.TemporaryDirectory(prefix="event-ready-eval-") as temp:
         "tentative_promotion_ignored": decisions.get("a6", {}).get("action") == "ignore",
     }
     event_values = decisions.get("a1", {}).get("events", []) + ([decisions["a2"]] if decisions.get("a2", {}).get("action") == "upsert" else [])
-    checks["exact_times"] = sorted(e.get("start", {}).get("dateTime", "")[:16] for e in event_values) == sorted([f"{day}T10:00", f"{day}T17:00", f"{day}T19:00"])
+    try:
+        actual = sorted((datetime.fromisoformat(e["start"]["dateTime"].replace("Z", "+00:00")).timestamp(), datetime.fromisoformat(e["end"]["dateTime"].replace("Z", "+00:00")).timestamp()) for e in event_values)
+        expected = [(datetime.fromisoformat(f"{day}T{start}+00:00").timestamp(), datetime.fromisoformat(f"{day}T{end}+00:00").timestamp()) for start, end in [("10:00", "10:30"), ("17:00", "17:01"), ("19:00", "19:01")]]
+        checks["exact_times"] = actual == expected
+    except (KeyError, TypeError, ValueError):
+        checks["exact_times"] = False
     # Exercise the same deterministic schema parser as the Play, too.
-    module = (ROOT / "plays/inbox-event-router/resources/lib/decisions.ts").as_uri()
-    import subprocess
-    result = subprocess.run([shutil.which("deno", path=env["PATH"]), "eval",
+    module = (RESOURCES / "lib/decisions.ts").as_uri()
+    result = subprocess.run([deno, "eval",
         f'import {{parseEnvelope}} from {json.dumps(module)}; parseEnvelope(JSON.parse(Deno.readTextFileSync(Deno.args[0])));', str(output)],
         capture_output=True, text=True, env=env)
     checks["play_schema_valid"] = result.returncode == 0
+    if not all(checks.values()):
+        print(json.dumps({"synthetic_failure_details": envelope, "schema_error": result.stderr}, indent=2))
 print(json.dumps({"synthetic": True, "passed": sum(checks.values()), "total": len(checks), "checks": checks}, indent=2))
 raise SystemExit(0 if all(checks.values()) else 1)

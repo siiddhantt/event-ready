@@ -54,7 +54,17 @@ for (let index = 0; index < eventDecisions.length; index += 1) {
     ? nearbyLookups[index].items as CalendarEvent[]
     : [];
   const planned = await planOperation(decision, owned, nearby, new Date());
-  results.push(planned.result);
+  results.push({
+    ...planned.result,
+    event_key: decision.event_key,
+    title: decision.title,
+    kind: decision.kind,
+    start: decision.start,
+    end: decision.end,
+    source_thread_id: decision.source_thread_id,
+    source_received_at: decision.source_received_at,
+    cancelled: decision.cancelled === true,
+  });
   if (planned.operation?.action === "insert") inserts.push(planned.operation);
   if (planned.operation?.action === "patch") patches.push(planned.operation);
 }

@@ -164,6 +164,64 @@ const event = {
   end: { date: "2026-09-09" },
 };
 
+Deno.test("confirmed Calendar changes remain pending if the audit cannot be saved", async () => {
+  const directory = await Deno.makeTempDir();
+  try {
+    const prepared = await run(
+      "prepare",
+      ["collect", "primary", "7"],
+      directory,
+    );
+    const pending = await run("save-pending", [{
+      messages: [{ id: "m1", threadId: "t1" }],
+    }, prepared], directory);
+    const validated = await run("validate-decisions", [{
+      schema_version: 1,
+      run_token: pending.token,
+      decisions: [event],
+    }, "primary"], directory);
+    const plan = await run("plan-operations", [validated, [{ items: [] }], [{
+      items: [],
+    }]], directory);
+    const acknowledgment = {
+      id: plan.inserts[0].event_id,
+      htmlLink: "https://calendar.google.com/calendar/event?eid=test",
+      reminders: { useDefault: false, overrides: [] },
+    };
+    await Deno.remove(`${directory}/audit.jsonl`);
+    await Deno.mkdir(`${directory}/audit.jsonl`);
+    await assertRejects(
+      () => run("commit", [plan, [acknowledgment], []], directory),
+      "directory",
+    );
+    const blocked = JSON.parse(
+      await Deno.readTextFile(`${directory}/state.json`),
+    );
+    assertEquals(blocked.pending.token, pending.token);
+    assertEquals(blocked.cursor_epoch_seconds, null);
+    await Deno.remove(`${directory}/audit.jsonl`);
+    const receipt = await run(
+      "commit",
+      [plan, [acknowledgment], []],
+      directory,
+    );
+    assertEquals(receipt.results[0].outcome, "created");
+    const audit = JSON.parse(
+      (await Deno.readTextFile(`${directory}/audit.jsonl`)).trim(),
+    );
+    assertEquals(audit.run_token, pending.token);
+    assertEquals(audit.results[0].title, event.title);
+    assertEquals(audit.results[0].start, event.start);
+    assertEquals(audit.results[0].calendar_url, acknowledgment.htmlLink);
+    assertEquals(
+      JSON.parse(await Deno.readTextFile(`${directory}/state.json`)).pending,
+      null,
+    );
+  } finally {
+    await Deno.remove(directory, { recursive: true });
+  }
+});
+
 Deno.test("one email can contain several independently keyed milestones", () => {
   const envelope = parseEnvelope({
     schema_version: 1,

@@ -1,6 +1,7 @@
 {
   "tasks": {
-    "test": "deno test -A plays/inbox-event-router/resources/tests plays/event-workspace-setup/resources/tests",
+    "test": "deno test -A plays/inbox-event-router/resources/tests plays/event-workspace-setup/resources/tests && python3 -B -m unittest discover -s plays/inbox-event-router/resources/tests -p 'test_*.py'",
+    "test:classifier": "python3 -B plays/inbox-event-router/resources/tests/check_classifier.py",
     "check": "deno check plays/inbox-event-router/resources/*.ts plays/event-workspace-setup/resources/*.ts",
     "fmt": "deno fmt plays deno.json",
     "lint:plays": "rote play lint plays/inbox-event-router/main.ts && rote play lint plays/event-workspace-setup/main.ts"

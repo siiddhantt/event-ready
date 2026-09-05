@@ -54,8 +54,30 @@ const receipt = await withStateLock(async () => {
     state.scan = null;
   }
   state.pending = null;
-  await writeState(state);
-  const results = Array.isArray(plan.results) ? plan.results : [];
+  const responses = [...inserts, ...patches] as Record<string, unknown>[];
+  const results = (Array.isArray(plan.results) ? plan.results : []).map(
+    (result: Record<string, unknown>) => {
+      if (
+        !["create_planned", "update_planned"].includes(String(result.outcome))
+      ) {
+        return result;
+      }
+      const response = responses.find((item) => item.id === result.event_id);
+      if (!response) {
+        throw new Error("A planned outcome has no Calendar acknowledgment");
+      }
+      return {
+        ...result,
+        outcome: result.cancelled
+          ? "cancelled"
+          : result.outcome === "create_planned"
+          ? "created"
+          : "updated",
+        calendar_url: response.htmlLink,
+        reminders: response.reminders,
+      };
+    },
+  );
   const output = {
     status: "applied",
     processed: processedCount,
@@ -66,8 +88,13 @@ const receipt = await withStateLock(async () => {
   await appendAudit({
     at: new Date().toISOString(),
     action: "apply",
+    run_token: runToken,
+    calendar_id: state.calendar_id,
     ...output,
   });
+  // A confirmed write must be durably queryable before its mail cursor advances.
+  // Retries share a run token so history can suppress duplicate receipts.
+  await writeState(state);
   return output;
 });
 

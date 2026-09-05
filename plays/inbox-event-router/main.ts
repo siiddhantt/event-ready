@@ -23,7 +23,7 @@
  *   - effect-write
  * metadata:
  *   rote_version: 0.80.0
- *   version: 0.2.0
+ *   version: 0.3.1
  *   status: released
  *   kind: atomic
  *   flow_type: parallel
@@ -394,7 +394,7 @@
  * writes:
  * - Owner-private cursor, pending-batch metadata, and audit receipts under the user state directory.
  * - Private events in the selected Google Calendar; no guests, messages, RSVPs, registrations, or deletes.
- * source: https://github.com/siiddhantt/event-ready/tree/harden-event-ready/plays/inbox-event-router
+ * source: https://github.com/siiddhantt/event-ready/tree/main/plays/inbox-event-router
  * ---
  */
 

@@ -1,57 +1,43 @@
 # Event Workspace Setup
 
-Prepare the repository for an upcoming or ongoing Calendar event. The Play can
-clone a missing repository you configured, install its dependencies, and open
-your editor and relevant HTTPS event links. An existing repository is reused.
+Prepare a repository for any upcoming or ongoing Calendar event: an interview,
+a planning meeting or a hackathon deadline. Clone it if missing, install its
+dependencies, and open your editor and relevant HTTPS links.
 
-Requirements: Rote 0.80.0, Deno, Git, a desktop editor/browser and Google
-Calendar read access. Install the package's declared Calendar adapter and
-complete Google consent. Run this on the desktop where you want applications to
-open.
-
-## Configure a trusted repository
-
-Create the approved parent directory first. Replace the example paths and URL:
+Requires Rote 0.80.0+, Deno, Git and a desktop editor/browser. Authenticate Calendar:
 
 ```sh
-rote play run ./main.ts mode=setup \
-  project_roots='["/home/me/projects"]' editor=code browser=default \
-  repository_url=https://github.com/you/project \
-  project=/home/me/projects/project install_dependencies=true
-
-rote play run ./main.ts mode=run horizon_hours=168 \
-  project=/home/me/projects/project dry_run=true --output=json
-
-rote play run ./main.ts mode=run horizon_hours=168 \
-  project=/home/me/projects/project remember=true --output=json
+rote registry adapter pull modiqo/calendar --yes
+rote oauth setup google --adapter calendar --scopes calendar.events.readonly
 ```
 
-Preview reports planned clone/setup commands and application launches. Missing
-repository dependency detection takes place after cloning; configure an explicit
-`setup_argv` JSON argument array to preview the exact setup command before
-clone. The actual run stops on a clone or install failure and reports launch
-failures. No matching event returns an idle result; `event_id` selects a
-particular event.
+If using the inbox Play too, use its Calendar authorization helper instead so
+both read and owned-event write scopes are retained.
 
-Automatic installers cover npm, pnpm, declared Yarn versions, uv, Deno, Cargo
-and Go. Unsupported manifests need an explicit trusted command. Installing
-dependencies may run package lifecycle scripts. Only the user's saved setup
-configuration can authorize a repository or command; an email cannot do so.
+Create the approved parent directory, then configure a repository you trust:
 
-The Play preserves existing files, rejects a mismatched Git origin, stays inside
-approved roots and refuses ambiguous automatic matches. `remember=true` needs an
-explicit project choice; a preview never saves a mapping. Installation runs
-again on subsequent preparations so changes to dependencies are not missed.
+```sh
+play=https://play.modiqo.ai/siiddhantt/event-workspace-setup@0.2.2
+rote play run "$play" mode=setup project_roots='["/home/me/projects"]' \
+  project=/home/me/projects/project repository_url=https://github.com/you/project \
+  install_dependencies=true editor=code browser=default
+rote play run "$play" horizon_hours=168 project=/home/me/projects/project dry_run=true
+rote play run "$play" horizon_hours=168 project=/home/me/projects/project remember=true
+```
 
-Settings are stored under the user's config directory, or
-`EVENT_READY_WORKSPACE_CONFIG_DIR` when set. Rote execution traces can contain
-private Calendar information; keep them out of Git and demos.
+Add `event_id=CALENDAR_EVENT_ID` to target an event; otherwise the next eligible
+event is selected. `remember=true` saves your explicit project choice for matching
+future events. A preview does not clone, install, launch or save mappings.
+Without a confident project match, event links can still open without a repo.
 
-Tested with a fresh macOS clone, Deno dependency caching, VS Code and browser
-launches, then a second preview that reused the clone. Platform launch adapters
-also cover Linux, Windows and WSL; this revision has not had live Windows/WSL
-QA.
+Automatic installation supports npm lockfiles, pnpm, declared Yarn versions,
+uv, Deno, Cargo and Go. Other manifests need a trusted `setup_argv` JSON argument
+array. For a missing repo, detection happens after cloning. Dependency setup may
+run lifecycle scripts; email cannot authorize repositories or commands.
 
-[Source and full instructions](https://github.com/siiddhantt/event-ready/tree/harden-event-ready)
-·
-[Verification ledger](https://github.com/siiddhantt/event-ready/blob/harden-event-ready/docs/verification.md)
+Existing files are preserved. Mismatched origins, ambiguous matches, incomplete
+scans and failed installs stop preparation. Installations run again to respect
+changed dependencies. Launch failures are reported. Settings live under your
+user config directory (`EVENT_READY_WORKSPACE_CONFIG_DIR` can override it).
+Rote traces may contain private Calendar data. Live verified on macOS; launch
+adapters also support Linux, Windows and WSL.

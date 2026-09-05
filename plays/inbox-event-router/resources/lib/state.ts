@@ -184,10 +184,21 @@ export async function appendAudit(
   await Deno.mkdir(directory, { recursive: true, mode: 0o700 });
   const separator = Deno.build.os === "windows" ? "\\" : "/";
   const path = `${directory}${separator}audit.jsonl`;
-  await Deno.writeTextFile(path, `${JSON.stringify(record)}\n`, {
+  const handle = await Deno.open(path, {
     append: true,
+    write: true,
     create: true,
     mode: 0o600,
   });
+  try {
+    const bytes = new TextEncoder().encode(`${JSON.stringify(record)}\n`);
+    let written = 0;
+    while (written < bytes.length) {
+      written += await handle.write(bytes.subarray(written));
+    }
+    await handle.sync();
+  } finally {
+    handle.close();
+  }
   if (Deno.build.os !== "windows") await Deno.chmod(path, 0o600);
 }

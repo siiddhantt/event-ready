@@ -23,7 +23,7 @@
  *   - effect-local-write
  * metadata:
  *   rote_version: 0.80.0
- *   version: 0.2.0
+ *   version: 0.2.2
  *   status: released
  *   kind: atomic
  *   flow_type: parallel
@@ -357,7 +357,7 @@
  * - Owner-private editor, browser, approved-root, and explicit project-mapping configuration.
  * - Clones only explicitly configured repositories inside approved roots and runs their authorized dependency install commands, which may execute package lifecycle scripts.
  * - Opens apps and HTTPS links; never joins meetings or submits forms.
- * source: https://github.com/siiddhantt/event-ready/tree/harden-event-ready/plays/event-workspace-setup
+ * source: https://github.com/siiddhantt/event-ready/tree/main/plays/event-workspace-setup
  * ---
  */
 
