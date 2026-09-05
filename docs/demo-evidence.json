@@ -65,6 +65,22 @@
     "enabled": true,
     "linger": true,
     "reboot_tested": false,
-    "phone_delivery_tested": false
+    "phone_delivery_tested": false,
+    "actual_timer_run_at": "2026-09-05T03:00:40Z",
+    "actual_timer_result": "idle"
+  },
+  "publication": {
+    "inbox-event-router": {
+      "uri": "https://play.modiqo.ai/siiddhantt/inbox-event-router@0.2.0",
+      "visibility": "public",
+      "archive_sha256": "fb2d91f8e262e40404d3c5db07a0317b054f857a68700fdf7884c755273acd70",
+      "exact_public_uri_run_passed": true
+    },
+    "event-workspace-setup": {
+      "uri": "https://play.modiqo.ai/siiddhantt/event-workspace-setup@0.2.0",
+      "visibility": "public",
+      "archive_sha256": "0addce4e94fbf42358a2bc7389fc4a79ae5bbf4bc75f5b724a3852f7fd2243ac",
+      "exact_public_uri_run_passed": true
+    }
   }
 }

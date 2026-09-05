@@ -46,3 +46,12 @@ Draft social post, to edit and post manually:
 Tag Modiqo and WeMakeDevs using their verified platform handles. Add the public
 Play links and a real clip after publication; do not claim a win or unmeasured
 adoption.
+
+Verified public links for the recording:
+
+- [Inbox Event Router v0.2.0](https://play.modiqo.ai/siiddhantt/inbox-event-router@0.2.0)
+- [Event Workspace Setup v0.2.0](https://play.modiqo.ai/siiddhantt/event-workspace-setup@0.2.0)
+
+The [aggregated evidence](demo-evidence.json) contains test counts and actual run
+receipts without private email, account identifiers or meeting links. It is a
+record of observed results, not a substitute for a live recording.

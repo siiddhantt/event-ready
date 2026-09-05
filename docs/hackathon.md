@@ -37,6 +37,11 @@ This establishes that public cross-author process execution is available on this
 host. Our release acceptance additionally runs each exact published URI; it does
 not pretend that another person's Google consent has been tested for them.
 
+Both Plays were publicly published as v0.2.0 on September 5. Each successful
+registry receipt explicitly confirms that anyone can resolve and run the public
+URI; both exact URIs passed live smoke runs. The generic author-only release hint
+therefore does not describe these public publications.
+
 ## Published alternatives
 
 This comparison mainly inspects public descriptions/contracts. We additionally

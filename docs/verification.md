@@ -21,8 +21,10 @@ Checked September 5, 2026. These are observed results, not a promise of zero bug
 | Unattended systemd service | Passed at 02:45:27 UTC: 41 further messages across three batches, zero extra writes, caught up |
 | Repeat service invocation | Idle at 02:46:13 UTC: zero messages and zero writes |
 | Independent Calendar verification | Fresh get/list calls confirmed the revised time and three reminders, exactly one record per key, original ID preserved on update |
-| Systemd timer | Enabled every 15 minutes with up to 30 seconds jitter; unit files validated, lingering enabled; next trigger observed as 08:30:20 IST |
-| Public Plays | Not published yet |
+| Systemd timer | Enabled every 15 minutes; lingering enabled; actual 08:30 IST timer trigger completed successfully at 03:00:40 UTC, idle with zero writes |
+| Public router v0.2.0 | Published, manifest verified, exact public URI installed and executed on Pi from an isolated directory/state copy; idle, complete Calendar snapshot |
+| Public workspace v0.2.0 | Published, manifest verified, exact public URI installed and executed on macOS from `/tmp`; Deno dependencies installed, editor and three links opened, no failures |
+| OAuth refresh | The published workspace run refreshed the expiring local Calendar token successfully |
 
 The baseline repository had 42 passing tests and one macOS temporary-path failure.
 This revision adds coverage for page/restart recovery, account and Calendar
@@ -38,14 +40,23 @@ the Modiqo client's unverified-app warning; the account owner chose to approve.
 The subsequent real write and independent readback passed. This is why structural
 validation and a successful Calendar read are insufficient release checks.
 
-The service was exercised under its actual systemd environment. Timer enablement
-and the computed next trigger were checked; this ledger does not claim a reboot
-test or verified phone notification delivery. The newly found date-only deadline
+The service was exercised under its actual systemd environment and by an actual
+timer trigger. This ledger does not claim a reboot test or verified phone
+notification delivery. The newly found date-only deadline
 was already on the current day, so it has no retroactive popup. The future
 interview has one-day, one-hour and ten-minute popup reminders.
 
 Both v0.2.0 package dry-runs passed. The router archive contains 53 files and
 the workspace archive 39, including their setup instructions and synthetic
 fixtures. Python bytecode was removed from the router archive. No private
-execution trace, credential or real email is included. Public URI execution is
-the remaining release check.
+execution trace, credential or real email is included. Both exact public URI
+execution checks passed.
+
+Public release references:
+
+- [siiddhantt/inbox-event-router@0.2.0](https://play.modiqo.ai/siiddhantt/inbox-event-router@0.2.0)
+- [siiddhantt/event-workspace-setup@0.2.0](https://play.modiqo.ai/siiddhantt/event-workspace-setup@0.2.0)
+
+Rote's successful publication receipts explicitly say the public URI can be
+resolved and run by anyone, with process work disclosed before execution. This
+supersedes the CLI's generic author-only release hint for these public entries.

@@ -10,6 +10,16 @@ update, then caught up with 41 further messages. A repeat run was idle; Calendar
 lookups confirmed one record per event. Its 15-minute systemd timer is enabled.
 See the complete [verification ledger](docs/verification.md).
 
+Public Community submissions, each pinned to v0.2.0:
+
+- [Inbox Event Router](https://play.modiqo.ai/siiddhantt/inbox-event-router@0.2.0)
+- [Event Workspace Setup](https://play.modiqo.ai/siiddhantt/event-workspace-setup@0.2.0)
+
+Both exact public URIs were installed and run through Rote after publication.
+Inspect their contracts and complete account/project setup before running them
+with your own data. Setup instructions travel inside each package's
+`resources/README.md`.
+
 | Play | What it does |
 | --- | --- |
 | `inbox-event-router` | Collects resumable pages of new Gmail messages, asks an agent to review every message, validates the decisions, and creates or updates private Calendar events. |
