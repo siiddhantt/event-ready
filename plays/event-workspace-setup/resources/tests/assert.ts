@@ -20,3 +20,16 @@ export function assertThrows(operation: () => unknown, includes: string): void {
   }
   throw new Error(`Expected error containing: ${includes}`);
 }
+
+export async function assertRejects(
+  operation: () => Promise<unknown>,
+  includes: string,
+): Promise<void> {
+  try {
+    await operation();
+  } catch (error) {
+    if (error instanceof Error && error.message.includes(includes)) return;
+    throw error;
+  }
+  throw new Error(`Expected error containing: ${includes}`);
+}

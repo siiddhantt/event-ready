@@ -1,0 +1,8 @@
+{
+  "tasks": {
+    "test": "deno test -A plays/inbox-event-router/resources/tests plays/event-workspace-setup/resources/tests",
+    "check": "deno check plays/inbox-event-router/resources/*.ts plays/event-workspace-setup/resources/*.ts",
+    "fmt": "deno fmt plays deno.json",
+    "lint:plays": "rote play lint plays/inbox-event-router/main.ts && rote play lint plays/event-workspace-setup/main.ts"
+  }
+}

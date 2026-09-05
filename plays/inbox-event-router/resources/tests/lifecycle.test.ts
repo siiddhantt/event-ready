@@ -158,12 +158,12 @@ Deno.test("a singleton Calendar write commits its one-event batch", async () => 
           confidence: 0.99,
           evidence: ["Exact source evidence"],
           start: {
-            dateTime: "2026-09-08T10:00:00+05:30",
-            timeZone: "Asia/Kolkata",
+            dateTime: new Date(Date.now() + 86400_000).toISOString(),
+            timeZone: "UTC",
           },
           end: {
-            dateTime: "2026-09-08T11:00:00+05:30",
-            timeZone: "Asia/Kolkata",
+            dateTime: new Date(Date.now() + 90000_000).toISOString(),
+            timeZone: "UTC",
           },
         }],
       }),
@@ -182,7 +182,13 @@ Deno.test("a singleton Calendar write commits its one-event batch", async () => 
   );
   const receipt = await run(
     "commit.ts",
-    [JSON.stringify(plan), JSON.stringify({ id: "created" }), "[]"],
+    [
+      JSON.stringify(plan),
+      JSON.stringify({
+        id: (plan.inserts as Record<string, unknown>[])[0].event_id,
+      }),
+      "[]",
+    ],
     stateDirectory,
   );
   assertEquals(receipt.status, "applied");

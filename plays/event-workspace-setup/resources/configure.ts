@@ -1,4 +1,12 @@
-import { readConfig, WorkspaceConfig, writeConfig } from "./lib/config.ts";
+import {
+  isWithin,
+  parseConfig,
+  readConfig,
+  repositoryUrl,
+  WorkspaceConfig,
+  writeConfig,
+} from "./lib/config.ts";
+import { basename, dirname, resolve } from "node:path";
 
 function parseRoots(raw: string): string[] {
   let values: unknown;
@@ -29,6 +37,10 @@ const [
   editorRaw = "code",
   browserRaw = "default",
   editorCommandRaw = "",
+  repositoryRaw = "",
+  projectRaw = "",
+  installRaw = "false",
+  setupArgvRaw = "",
 ] = Deno.args;
 if (mode === "run") {
   console.log(JSON.stringify({ status: "ready", config: await readConfig() }));
@@ -63,6 +75,32 @@ const config: WorkspaceConfig = {
   editor: { kind: editorRaw as WorkspaceConfig["editor"]["kind"], command },
   browser: browserRaw as WorkspaceConfig["browser"],
   mappings: existing?.mappings ?? {},
+  projects: existing?.projects ?? [],
 };
-await writeConfig(config);
+if (repositoryRaw) {
+  const repository = repositoryUrl(repositoryRaw);
+  const name = new URL(repository).pathname.split("/").at(-1)!.replace(
+    /\.git$/,
+    "",
+  );
+  const path = resolve(projectRaw || `${roots[0]}/${name}`);
+  // The parent must already exist; canonicalize it even when the repo does not.
+  const parent = await Deno.realPath(dirname(path));
+  const leaf = basename(path);
+  if (!leaf || leaf === "." || leaf === ".." || !isWithin(parent, roots)) {
+    throw new Error("Configured project must be inside an approved root");
+  }
+  const canonical = `${parent}/${leaf}`;
+  const setup = {
+    path: canonical,
+    repository_url: repository,
+    install_dependencies: installRaw === "true",
+    setup_argv: setupArgvRaw ? JSON.parse(setupArgvRaw) : undefined,
+  };
+  config.projects = [
+    ...(config.projects ?? []).filter((item) => item.path !== canonical),
+    setup,
+  ];
+}
+await writeConfig(parseConfig(config));
 console.log(JSON.stringify({ status: "configured", config }));

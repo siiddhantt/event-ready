@@ -1,10 +1,12 @@
-import { isWithin, WorkspaceConfig } from "./config.ts";
+import { isWithin, ProjectSetup, WorkspaceConfig } from "./config.ts";
 
 export type Repository = {
   name: string;
   path: string;
   remote: string | null;
   web_url: string | null;
+  setup?: ProjectSetup;
+  missing?: boolean;
 };
 
 export type RepositoryScan = {
@@ -94,6 +96,19 @@ export async function scanRepositoryInventory(
     }
   }
   if (queue.length > 0) capped = true;
+  for (const project of config.projects ?? []) {
+    if (!isWithin(project.path, config.roots)) continue;
+    const found = repositories.find((repo) => repo.path === project.path);
+    if (found) found.setup = project;
+    else {repositories.push({
+        name: project.path.replace(/\\/g, "/").split("/").at(-1)!,
+        path: project.path,
+        remote: project.repository_url,
+        web_url: githubWebUrl(project.repository_url),
+        setup: project,
+        missing: true,
+      });}
+  }
   return {
     repositories: repositories.sort((left, right) =>
       left.path.localeCompare(right.path)

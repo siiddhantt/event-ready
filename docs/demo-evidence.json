@@ -1,0 +1,70 @@
+{
+  "recorded_on": "2026-09-05",
+  "privacy": "Aggregated verification evidence only; no email bodies, account identifiers, event IDs or meeting links.",
+  "runtime": {
+    "pi_architecture": "aarch64",
+    "rote": "0.80.0",
+    "codex": "0.153.4",
+    "deno_pi": "2.7.5"
+  },
+  "tests": {
+    "deno_passed": 51,
+    "python_passed": 7,
+    "real_codex_synthetic_assertions_passed": 9
+  },
+  "live_cycles": [
+    {
+      "host": "macOS",
+      "processed": 5,
+      "inserted": 0,
+      "updated": 0,
+      "purpose": "initial all-ignore cycle"
+    },
+    {
+      "host": "Pi",
+      "processed": 25,
+      "inserted": 1,
+      "updated": 1,
+      "at": "2026-09-05T02:42:21Z",
+      "purpose": "retained batch retry after corrected Google consent"
+    },
+    {
+      "host": "Pi systemd",
+      "processed": 41,
+      "inserted": 0,
+      "updated": 0,
+      "at": "2026-09-05T02:45:27Z",
+      "purpose": "catch up through remaining pages"
+    },
+    {
+      "host": "Pi systemd",
+      "processed": 0,
+      "inserted": 0,
+      "updated": 0,
+      "at": "2026-09-05T02:46:13Z",
+      "purpose": "repeat idle run"
+    }
+  ],
+  "calendar_readback": {
+    "records_per_written_event_key": 1,
+    "updated_event_kept_original_id": true,
+    "future_event_popup_minutes": [
+      1440,
+      60,
+      10
+    ]
+  },
+  "workspace": {
+    "fresh_clone": true,
+    "dependency_setup": true,
+    "editor_and_three_links_opened": true,
+    "repeat_preview_reused_clone": true
+  },
+  "timer": {
+    "interval_minutes": 15,
+    "enabled": true,
+    "linger": true,
+    "reboot_tested": false,
+    "phone_delivery_tested": false
+  }
+}

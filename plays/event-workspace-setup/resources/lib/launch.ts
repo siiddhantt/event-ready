@@ -154,3 +154,39 @@ export function executeLaunches(
   }
   return { opened, failures };
 }
+
+export async function executeCheckedLaunches(
+  commands: LaunchRequest[],
+): Promise<LaunchResult> {
+  const opened: string[] = [];
+  const failures: LaunchResult["failures"] = [];
+  for (const spec of commands) {
+    try {
+      const child = new Deno.Command(spec.command, {
+        args: spec.args,
+        stdin: "null",
+        stdout: "null",
+        stderr: "null",
+      }).spawn();
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const status = await Promise.race([
+        child.status,
+        new Promise<null>((resolve) => {
+          timer = setTimeout(() => resolve(null), 2000);
+        }),
+      ]);
+      clearTimeout(timer);
+      if (status && !status.success) {
+        throw new Error(`Launch exited with status ${status.code}`);
+      }
+      if (!status) child.unref();
+      opened.push(spec.kind);
+    } catch (error) {
+      failures.push({
+        kind: spec.kind,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+  return { opened, failures };
+}

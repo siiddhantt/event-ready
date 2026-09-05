@@ -1,0 +1,11 @@
+[Unit]
+Description=Check email for events and deadlines every 15 minutes
+
+[Timer]
+OnCalendar=*-*-* *:00/15:00
+Persistent=true
+RandomizedDelaySec=30
+Unit=event-ready-inbox.service
+
+[Install]
+WantedBy=timers.target

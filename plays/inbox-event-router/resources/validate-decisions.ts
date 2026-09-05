@@ -1,11 +1,19 @@
-import { parseEnvelope } from "./lib/decisions.ts";
+import {
+  eventDecisions as expandEvents,
+  parseEnvelope,
+} from "./lib/decisions.ts";
 import { readState } from "./lib/state.ts";
-import { UpsertDecision } from "./lib/types.ts";
 
 const [decisionsRaw = "", calendarId = "primary"] = Deno.args;
 if (!decisionsRaw) throw new Error("decisions_json is required in apply mode");
-const envelope = parseEnvelope(JSON.parse(decisionsRaw));
+const raw = decisionsRaw.startsWith("@file:")
+  ? await Deno.readTextFile(decisionsRaw.slice(6))
+  : decisionsRaw;
+const envelope = parseEnvelope(JSON.parse(raw));
 const state = await readState();
+if (state.calendar_id && state.calendar_id !== calendarId) {
+  throw new Error("Calendar differs from the collected batch");
+}
 if (!state.pending) {
   throw new Error("No pending inbox batch exists; run collect first");
 }
@@ -18,9 +26,7 @@ const received = envelope.decisions.map((decision) => decision.message_id)
 if (JSON.stringify(expected) !== JSON.stringify(received)) {
   throw new Error("decisions must cover every pending message exactly once");
 }
-const eventDecisions = envelope.decisions.filter((
-  decision,
-): decision is UpsertDecision => decision.action === "upsert");
+const eventDecisions = expandEvents(envelope.decisions);
 for (const decision of eventDecisions) {
   if (
     state.pending.thread_ids[decision.message_id] !== decision.source_thread_id

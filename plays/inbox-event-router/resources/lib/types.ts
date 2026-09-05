@@ -6,6 +6,13 @@ export type PendingBatch = {
   next_cursor_epoch_seconds: number;
   message_ids: string[];
   thread_ids: Record<string, string>;
+  next_page_token?: string;
+};
+
+export type Scan = {
+  query: string;
+  page_token: string;
+  next_cursor_epoch_seconds: number;
 };
 
 export type RouterState = {
@@ -13,6 +20,9 @@ export type RouterState = {
   cursor_epoch_seconds: number | null;
   processed_message_ids: string[];
   pending: PendingBatch | null;
+  calendar_id?: string;
+  mailbox_id?: string;
+  scan?: Scan | null;
 };
 
 export type EventPoint =
@@ -52,9 +62,20 @@ export type UpsertDecision = {
   reminders_minutes?: number[];
   needs_confirmation?: boolean;
   cancelled?: boolean;
+  updates_existing?: boolean;
+  source_received_at?: string;
 };
 
-export type AgentDecision = IgnoreDecision | UpsertDecision;
+export type MultiEventDecision = {
+  message_id: string;
+  action: "upsert_many";
+  events: UpsertDecision[];
+};
+
+export type AgentDecision =
+  | IgnoreDecision
+  | UpsertDecision
+  | MultiEventDecision;
 
 export type DecisionEnvelope = {
   schema_version: 1;

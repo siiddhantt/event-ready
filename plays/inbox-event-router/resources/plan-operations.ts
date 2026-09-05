@@ -2,7 +2,7 @@ import { planOperation } from "./lib/calendar.ts";
 import { normalizeFanOut } from "./lib/fanout.ts";
 import { CalendarEvent, UpsertDecision } from "./lib/types.ts";
 
-type Lookup = { items?: unknown };
+type Lookup = { items?: unknown; nextPageToken?: unknown; error?: unknown };
 
 const [validatedRaw = "", ownedRaw = "[]", nearbyRaw = "[]"] = Deno.args;
 const validated = JSON.parse(validatedRaw) as Record<string, unknown>;
@@ -36,6 +36,16 @@ const results: Record<string, unknown>[] = decisions.flatMap((decision) => {
 });
 
 for (let index = 0; index < eventDecisions.length; index += 1) {
+  for (const lookup of [ownedLookups[index], nearbyLookups[index]]) {
+    if (
+      !lookup || lookup.error || lookup.nextPageToken ||
+      (lookup.items !== undefined && !Array.isArray(lookup.items))
+    ) {
+      throw new Error(
+        "Calendar lookup is incomplete; no writes are safe until it is complete",
+      );
+    }
+  }
   const decision = eventDecisions[index] as UpsertDecision;
   const owned = Array.isArray(ownedLookups[index]?.items)
     ? ownedLookups[index].items as CalendarEvent[]

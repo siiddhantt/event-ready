@@ -100,7 +100,9 @@ export function parsePoint(value: unknown, name: string): EventPoint {
     !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?(?:[zZ]|[+-]\d{2}:\d{2})$/
       .test(
         dateTime,
-      ) || !Number.isFinite(new Date(dateTime).getTime())
+      ) ||
+    !dateOnly(dateTime.slice(0, 10)) ||
+    !Number.isFinite(new Date(dateTime).getTime())
   ) {
     throw new Error(
       `${name}.dateTime must be ISO 8601 with an explicit offset`,
@@ -145,6 +147,18 @@ function parseUpsert(
   const kind = text(item.kind, "kind", 30);
   if (!KINDS.has(kind)) throw new Error(`Unsupported event kind: ${kind}`);
   const sourceThreadId = text(item.source_thread_id, "source_thread_id", 256);
+  const sourceReceivedAt = optionalText(
+    item.source_received_at,
+    "source_received_at",
+    100,
+  );
+  if (
+    sourceReceivedAt &&
+    (!/(Z|[+-]\d{2}:\d{2})$/i.test(sourceReceivedAt) ||
+      !Number.isFinite(Date.parse(sourceReceivedAt)))
+  ) {
+    throw new Error("source_received_at must be an ISO timestamp with offset");
+  }
   const eventKey = text(item.event_key, "event_key", 128).toLowerCase();
   if (!EVENT_KEY.test(eventKey)) {
     throw new Error(
@@ -152,11 +166,22 @@ function parseUpsert(
     );
   }
   const threadKey = `gmail.${sourceThreadId.toLowerCase()}`;
-  if (eventKey !== threadKey && !eventKey.startsWith(`${threadKey}.`)) {
+  if (
+    eventKey !== threadKey && !eventKey.startsWith(`${threadKey}.`) &&
+    item.updates_existing !== true
+  ) {
     throw new Error("event_key must be derived from source_thread_id");
   }
   const confidence = item.confidence;
-  if (typeof confidence !== "number" || confidence < 0.9 || confidence > 1) {
+  for (const name of ["cancelled", "needs_confirmation", "updates_existing"]) {
+    if (item[name] !== undefined && typeof item[name] !== "boolean") {
+      throw new Error(`${name} must be a boolean`);
+    }
+  }
+  if (
+    typeof confidence !== "number" || !Number.isFinite(confidence) ||
+    confidence < 0.9 || confidence > 1
+  ) {
     throw new Error("confidence must be between 0.9 and 1");
   }
   if (
@@ -219,6 +244,8 @@ function parseUpsert(
     reminders_minutes: reminders,
     needs_confirmation: item.needs_confirmation === true,
     cancelled: item.cancelled === true,
+    updates_existing: item.updates_existing === true,
+    source_received_at: sourceReceivedAt,
   };
 }
 
@@ -234,7 +261,32 @@ function parseDecision(value: unknown): AgentDecision {
     };
   }
   if (action === "upsert") return parseUpsert(item, messageId);
+  if (action === "upsert_many") {
+    if (
+      !Array.isArray(item.events) || item.events.length < 1 ||
+      item.events.length > 20
+    ) {
+      throw new Error("upsert_many.events must contain 1 to 20 events");
+    }
+    return {
+      message_id: messageId,
+      action,
+      events: item.events.map((event) =>
+        parseUpsert(record(event, "event"), messageId)
+      ),
+    };
+  }
   throw new Error(`Unsupported decision action: ${action}`);
+}
+
+export function eventDecisions(decisions: AgentDecision[]): UpsertDecision[] {
+  return decisions.flatMap((decision) =>
+    decision.action === "ignore"
+      ? []
+      : decision.action === "upsert_many"
+      ? decision.events
+      : [decision]
+  );
 }
 
 export function parseEnvelope(value: unknown): DecisionEnvelope {

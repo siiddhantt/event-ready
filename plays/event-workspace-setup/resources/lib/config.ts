@@ -1,9 +1,17 @@
+export type ProjectSetup = {
+  path: string;
+  repository_url: string;
+  install_dependencies: boolean;
+  setup_argv?: string[];
+};
+
 export type WorkspaceConfig = {
   schema_version: 1;
   roots: string[];
   editor: { kind: "code" | "cursor" | "zed" | "custom"; command: string };
   browser: "default" | "chrome" | "edge" | "firefox" | "safari";
   mappings: Record<string, string>;
+  projects?: ProjectSetup[];
 };
 
 function homeDirectory(): string {
@@ -86,7 +94,58 @@ export function parseConfig(value: unknown): WorkspaceConfig {
     editor: parseEditor(item.editor),
     browser: item.browser as WorkspaceConfig["browser"],
     mappings,
+    projects: parseProjects(item.projects),
   };
+}
+
+export function repositoryUrl(raw: string): string {
+  const url = new URL(raw);
+  if (
+    url.protocol !== "https:" || url.hostname !== "github.com" ||
+    url.username || url.password || url.search || url.hash ||
+    !/^\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/?$/.test(url.pathname)
+  ) {
+    throw new Error(
+      "repository_url must be a credential-free GitHub HTTPS repository URL",
+    );
+  }
+  return `https://github.com${
+    url.pathname.replace(/\/$/, "").replace(/\.git$/, "")
+  }.git`;
+}
+
+function parseProjects(value: unknown): ProjectSetup[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) {
+    throw new Error("Configured projects must be an array");
+  }
+  return value.map((entry) => {
+    if (
+      !entry || typeof entry !== "object" || typeof entry.path !== "string" ||
+      !entry.path ||
+      typeof entry.repository_url !== "string" ||
+      typeof entry.install_dependencies !== "boolean"
+    ) {
+      throw new Error("Configured project is malformed");
+    }
+    if (
+      entry.setup_argv !== undefined &&
+      (!Array.isArray(entry.setup_argv) || !entry.setup_argv.length ||
+        !entry.setup_argv.every((arg: unknown) =>
+          typeof arg === "string" && !arg.includes("\0")
+        ))
+    ) {
+      throw new Error(
+        "setup_argv must be a nonempty array of command arguments",
+      );
+    }
+    return {
+      path: entry.path,
+      repository_url: repositoryUrl(entry.repository_url),
+      install_dependencies: entry.install_dependencies,
+      setup_argv: entry.setup_argv,
+    };
+  });
 }
 
 export async function readConfig(): Promise<WorkspaceConfig> {

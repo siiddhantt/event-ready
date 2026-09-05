@@ -1,0 +1,15 @@
+[Unit]
+Description=Event Ready: review new email and maintain Calendar deadlines
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/event-ready
+ExecStart=/usr/bin/python3 %h/event-ready/scripts/run_inbox.py
+Environment=PATH=%h/.local/bin:%h/.rote/bin:/usr/local/bin:/usr/bin:/bin
+UMask=0077
+TimeoutStartSec=14min
+KillMode=control-group
+NoNewPrivileges=true
+PrivateTmp=true

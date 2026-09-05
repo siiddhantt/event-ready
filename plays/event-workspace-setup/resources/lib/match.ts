@@ -124,8 +124,17 @@ export function buildWorkspacePlan(
     : [];
   const selected = events
     .filter((event) =>
-      event.status !== "cancelled" && eventStart(event) !== null &&
-      eventStart(event)! >= now.getTime() &&
+      event.status !== "cancelled" &&
+      privateValues(event).eventReadyStatus !== "cancelled" &&
+      privateValues(event).eventReadyStatus !== "needs_confirmation" &&
+      eventStart(event) !== null &&
+      (eventStart(event)! >= now.getTime() || (() => {
+        const end = event.end as
+          | { dateTime?: string; date?: string }
+          | undefined;
+        return new Date(end?.dateTime ?? `${end?.date}T00:00:00Z`).getTime() >
+          now.getTime();
+      })()) &&
       (eventId ? event.id === eventId : isRelevant(event))
     )
     .sort((left, right) => eventStart(left)! - eventStart(right)!)

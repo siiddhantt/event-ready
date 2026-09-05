@@ -97,6 +97,7 @@ function messageBody(plain: string[], html: string[]): {
 export function normalizeMessage(
   message: GmailMessage,
 ): Record<string, unknown> | null {
+  if (!message || typeof message !== "object") return null;
   if (typeof message.id !== "string") return null;
   const headers = Array.isArray(message.payload?.headers)
     ? message.payload.headers as Header[]

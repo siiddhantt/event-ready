@@ -60,6 +60,7 @@ export function effectiveReminders(
   decision: UpsertDecision,
   now: Date,
 ): number[] {
+  if (decision.cancelled) return [];
   const start = pointMillis(decision.start);
   const future = (decision.reminders_minutes ?? defaultReminders(decision.kind))
     .filter((minutes) => start - minutes * 60_000 > now.getTime())
@@ -92,6 +93,7 @@ export function eventBody(
       eventReadyKey: decision.event_key,
       eventReadySourceMessage: decision.message_id,
       eventReadySourceThread: decision.source_thread_id,
+      eventReadySourceReceivedAt: decision.source_received_at ?? "",
       eventReadyKind: decision.kind,
       eventReadyCompany: decision.company ?? "",
       eventReadyProjectHint: decision.project_hint ?? "",
@@ -110,7 +112,7 @@ export function eventBody(
     start: decision.start,
     end: decision.end,
     visibility: "private",
-    transparency: "opaque",
+    transparency: decision.cancelled ? "transparent" : "opaque",
     reminders: {
       useDefault: false,
       overrides: reminders.map((minutes) => ({ method: "popup", minutes })),
@@ -159,7 +161,42 @@ export async function planOperation(
   const matching = owned.find((event) =>
     eventReadyKey(event) === decision.event_key && typeof event.id === "string"
   );
+  const matches = owned.filter((event) =>
+    eventReadyKey(event) === decision.event_key
+  );
+  if (matches.length > 1) {
+    throw new Error(
+      "Multiple owned events share one event key; resolve before applying",
+    );
+  }
+  if (matching?.status === "cancelled") {
+    return {
+      operation: null,
+      result: {
+        message_id: decision.message_id,
+        outcome: "user_deleted_event_preserved",
+        event_id: matching.id,
+      },
+    };
+  }
   if (matching && typeof matching.id === "string") {
+    const previous =
+      (matching.extendedProperties as { private?: Record<string, string> })
+        ?.private;
+    if (
+      previous?.eventReadySourceReceivedAt && (!decision.source_received_at ||
+        Date.parse(previous.eventReadySourceReceivedAt) >
+          Date.parse(decision.source_received_at))
+    ) {
+      return {
+        operation: null,
+        result: {
+          message_id: decision.message_id,
+          outcome: "older_update_preserved",
+          event_id: matching.id,
+        },
+      };
+    }
     return {
       operation: {
         message_id: decision.message_id,
@@ -174,6 +211,11 @@ export async function planOperation(
         event_id: matching.id,
       },
     };
+  }
+  if (decision.updates_existing) {
+    throw new Error(
+      "Cross-thread update requires an existing owned event; none was found",
+    );
   }
   if (decision.cancelled) {
     return {

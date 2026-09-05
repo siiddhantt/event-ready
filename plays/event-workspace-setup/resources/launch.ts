@@ -2,7 +2,7 @@ import { parseConfig } from "./lib/config.ts";
 import {
   browserCommand,
   editorCommand,
-  executeLaunches,
+  executeCheckedLaunches,
   LaunchRequest,
 } from "./lib/launch.ts";
 
@@ -35,7 +35,7 @@ if (dryRunRaw === "true") {
   }));
   Deno.exit(0);
 }
-const { opened, failures } = executeLaunches(commands);
+const { opened, failures } = await executeCheckedLaunches(commands);
 console.error(
   `Preparing ${
     String(

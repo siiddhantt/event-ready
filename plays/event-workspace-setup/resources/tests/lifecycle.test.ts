@@ -19,7 +19,7 @@ async function run(
 }
 
 Deno.test("setup, discover, plan, dry-launch, and remember form one safe lifecycle", async () => {
-  const root = await Deno.makeTempDir();
+  const root = await Deno.realPath(await Deno.makeTempDir());
   const configDirectory = await Deno.makeTempDir();
   const project = `${root}/acme-rocket`;
   await Deno.mkdir(`${project}/.git`, { recursive: true });

@@ -66,6 +66,9 @@ function parsePending(value: unknown): PendingBatch | null {
     next_cursor_epoch_seconds: item.next_cursor_epoch_seconds,
     message_ids: [...new Set(messageIds)],
     thread_ids: threadIds,
+    next_page_token: typeof item.next_page_token === "string"
+      ? item.next_page_token
+      : undefined,
   };
 }
 
@@ -87,6 +90,21 @@ export function parseState(value: unknown): RouterState {
   ) {
     throw new Error("State cursor is malformed");
   }
+  const scan = item.scan as RouterState["scan"];
+  if (
+    scan && (typeof scan.query !== "string" || !scan.query ||
+      typeof scan.page_token !== "string" ||
+      !Number.isSafeInteger(scan.next_cursor_epoch_seconds) ||
+      scan.next_cursor_epoch_seconds < 0)
+  ) {
+    throw new Error("State scan is malformed");
+  }
+  if (
+    item.calendar_id !== undefined &&
+    (typeof item.calendar_id !== "string" || !item.calendar_id)
+  ) {
+    throw new Error("State calendar identity is malformed");
+  }
   return {
     schema_version: SCHEMA_VERSION,
     cursor_epoch_seconds: cursor,
@@ -94,6 +112,11 @@ export function parseState(value: unknown): RouterState {
       -5000,
     ),
     pending: parsePending(item.pending),
+    calendar_id: item.calendar_id as string | undefined,
+    mailbox_id: typeof item.mailbox_id === "string"
+      ? item.mailbox_id
+      : undefined,
+    scan: scan ?? null,
   };
 }
 
@@ -114,10 +137,21 @@ export async function writeState(state: RouterState): Promise<void> {
   if (Deno.build.os !== "windows") await Deno.chmod(directory, 0o700);
   const path = statePath();
   const temporary = `${path}.${crypto.randomUUID()}.tmp`;
-  await Deno.writeTextFile(temporary, `${JSON.stringify(state)}\n`, {
+  const handle = await Deno.open(temporary, {
     createNew: true,
+    write: true,
     mode: 0o600,
   });
+  try {
+    const bytes = new TextEncoder().encode(`${JSON.stringify(state)}\n`);
+    let written = 0;
+    while (written < bytes.length) {
+      written += await handle.write(bytes.subarray(written));
+    }
+    await handle.sync();
+  } finally {
+    handle.close();
+  }
   if (Deno.build.os !== "windows") await Deno.chmod(temporary, 0o600);
   await Deno.rename(temporary, path);
 }
@@ -129,38 +163,17 @@ export async function withStateLock<T>(
   await Deno.mkdir(directory, { recursive: true, mode: 0o700 });
   const separator = Deno.build.os === "windows" ? "\\" : "/";
   const lockPath = `${directory}${separator}state.lock`;
-  let handle: Deno.FsFile;
+  // The OS releases this lock after a crash. Never unlink a locked inode.
+  const handle = await Deno.open(lockPath, {
+    create: true,
+    write: true,
+    mode: 0o600,
+  });
   try {
-    handle = await Deno.open(lockPath, {
-      createNew: true,
-      write: true,
-      mode: 0o600,
-    });
-  } catch (error) {
-    if (error instanceof Deno.errors.AlreadyExists) {
-      const info = await Deno.stat(lockPath);
-      if (info.mtime && Date.now() - info.mtime.getTime() > 15 * 60 * 1000) {
-        await Deno.remove(lockPath);
-        handle = await Deno.open(lockPath, {
-          createNew: true,
-          write: true,
-          mode: 0o600,
-        });
-      } else {
-        throw new Error(
-          "Another inbox-event-router state transition is active",
-        );
-      }
-    } else {
-      throw error;
-    }
-  }
-  try {
-    await handle.write(new TextEncoder().encode(`${Deno.pid}\n`));
+    await handle.lock(true);
     return await operation();
   } finally {
     handle.close();
-    await Deno.remove(lockPath).catch(() => undefined);
   }
 }
 
