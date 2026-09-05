@@ -2,112 +2,72 @@ import {
   isWithin,
   parseConfig,
   readConfig,
-  repositoryUrl,
-  WorkspaceConfig,
   writeConfig,
 } from "./lib/config.ts";
-import { basename, dirname, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
+import { discoverDefaults, setupWizard } from "./lib/onboarding.ts";
+import { PromptCancelled, Terminal } from "./lib/terminal.ts";
 
-function parseRoots(raw: string): string[] {
-  let values: unknown;
-  try {
-    values = JSON.parse(raw);
-  } catch {
-    values = raw.split(/\r?\n|;/).map((value) => value.trim()).filter(Boolean);
-  }
+const [mode = "run", settingsRaw = ""] = Deno.args;
+if (mode !== "run" && mode !== "setup") {
+  throw new Error("mode must be run or setup");
+}
+const existing = await readConfig().catch((error) => {
   if (
-    !Array.isArray(values) || values.length > 10 ||
-    !values.every((value) => typeof value === "string")
-  ) {
-    throw new Error(
-      "project_roots must be a JSON array containing at most 10 paths",
-    );
-  }
-  return values as string[];
-}
-
-function validCommand(value: string): boolean {
-  return /^[A-Za-z0-9._-]+$/.test(value) || /^[A-Za-z]:[\\/]/.test(value) ||
-    value.startsWith("/");
-}
-
-const [
-  mode = "run",
-  rootsRaw = "",
-  editorRaw = "code",
-  browserRaw = "default",
-  editorCommandRaw = "",
-  repositoryRaw = "",
-  projectRaw = "",
-  installRaw = "false",
-  setupArgvRaw = "",
-  portfolioRaw = "",
-] = Deno.args;
-if (mode === "run") {
-  console.log(JSON.stringify({ status: "ready", config: await readConfig() }));
-  Deno.exit(0);
-}
-if (mode !== "setup") throw new Error("mode must be setup or run");
-const roots: string[] = [];
-const existing = await readConfig().catch(() => null);
-for (
-  const candidate of rootsRaw ? parseRoots(rootsRaw) : existing?.roots ?? []
-) {
-  const real = await Deno.realPath(candidate);
-  const info = await Deno.stat(real);
-  if (!info.isDirectory) {
-    throw new Error(`Project root is not a directory: ${candidate}`);
-  }
-  roots.push(real);
-}
-const editorKinds = new Set(["code", "cursor", "zed", "custom"]);
-if (!editorKinds.has(editorRaw)) {
-  throw new Error("editor must be code, cursor, zed, or custom");
-}
-const command = editorRaw === "custom" ? editorCommandRaw : editorRaw;
-if (!command || !validCommand(command)) {
-  throw new Error("editor_command must be an executable name or absolute path");
-}
-const browsers = new Set(["default", "chrome", "edge", "firefox", "safari"]);
-if (!browsers.has(browserRaw)) {
-  throw new Error("browser must be default, chrome, edge, firefox, or safari");
-}
-const config: WorkspaceConfig = {
-  schema_version: 1,
-  roots: [...new Set(roots)],
-  editor: { kind: editorRaw as WorkspaceConfig["editor"]["kind"], command },
-  browser: browserRaw as WorkspaceConfig["browser"],
-  mappings: existing?.mappings ?? {},
-  projects: existing?.projects ?? [],
-  portfolio_url: portfolioRaw || existing?.portfolio_url,
-};
-if (repositoryRaw) {
-  if (!roots.length) {
-    throw new Error("A repository requires an approved project root");
-  }
-  const repository = repositoryUrl(repositoryRaw);
-  const name = new URL(repository).pathname.split("/").at(-1)!.replace(
-    /\.git$/,
-    "",
+    error instanceof Error &&
+    error.message === "Setup is required before run mode"
+  ) return null;
+  throw error;
+});
+if (settingsRaw) {
+  const config = parseConfig(JSON.parse(settingsRaw));
+  config.roots = await Promise.all(
+    config.roots.map((root) => Deno.realPath(root)),
   );
-  const path = resolve(projectRaw || `${roots[0]}/${name}`);
-  // The parent must already exist; canonicalize it even when the repo does not.
-  const parent = await Deno.realPath(dirname(path));
-  const leaf = basename(path);
-  if (!leaf || leaf === "." || leaf === ".." || !isWithin(parent, roots)) {
-    throw new Error("Configured project must be inside an approved root");
+  for (const project of config.projects ?? []) {
+    const requested = resolve(project.path);
+    project.path = join(
+      await Deno.realPath(dirname(requested)),
+      basename(requested),
+    );
+    if (!isWithin(project.path, config.roots)) {
+      throw new Error("Configured project must be inside an approved root");
+    }
   }
-  const canonical = `${parent}/${leaf}`;
-  const setup = {
-    path: canonical,
-    repository_url: repository,
-    install_dependencies: installRaw === "true",
-    setup_argv: setupArgvRaw ? JSON.parse(setupArgvRaw) : undefined,
-  };
-  config.projects = [
-    ...(config.projects ?? []).filter((item) => item.path !== canonical),
-    setup,
-  ];
+  await writeConfig(config);
+  console.log(
+    JSON.stringify({ status: mode === "run" ? "ready" : "configured", config }),
+  );
+} else if (existing && mode === "run") {
+  console.log(JSON.stringify({ status: "ready", config: existing }));
+} else {
+  const home = Deno.env.get("HOME") ?? Deno.env.get("USERPROFILE");
+  if (!home) throw new Error("No home directory is available");
+  const defaults = existing ?? await discoverDefaults(home);
+  const terminal = Terminal.open();
+  if (!terminal) {
+    console.log(
+      JSON.stringify({
+        status: "needs_setup",
+        message:
+          "Run this public Play in a terminal for guided setup, or have your agent confirm these defaults and pass them as settings JSON.",
+        defaults,
+      }),
+    );
+  } else {
+    try {
+      const config = await setupWizard(terminal, defaults);
+      console.log(
+        JSON.stringify({
+          status: mode === "run" ? "ready" : "configured",
+          config,
+        }),
+      );
+    } catch (error) {
+      if (!(error instanceof PromptCancelled)) throw error;
+      console.log(JSON.stringify({ status: "cancelled" }));
+    } finally {
+      terminal.close();
+    }
+  }
 }
-await writeConfig(parseConfig(config));
-console.log(JSON.stringify({ status: "configured", config }));

@@ -1,53 +1,41 @@
 # Event Workspace Setup
 
-Prepare an upcoming or ongoing event with its repository when one is clearly
-associated, or with useful meeting, portfolio and email links otherwise.
-
-Requires Rote 0.80.0+, Deno, Git and a desktop editor/browser. Authenticate Calendar:
+Choose a Calendar event. Prepare its project, or open its meeting, source email,
+Calendar details and (for interviews) your portfolio.
 
 ```sh
-rote registry adapter pull modiqo/calendar --yes
-rote oauth setup google --adapter calendar --scopes calendar.events.readonly
+rote play run https://play.modiqo.ai/siiddhantt/event-workspace-setup
 ```
 
-If using the inbox Play too, use its Calendar authorization helper instead so
-both read and owned-event write scopes are retained.
+New to Rote? Start with the
+[install link](https://play.modiqo.ai/install?play=siiddhantt/event-workspace-setup@0.4.0).
+The [official guide](https://www.modiqo.ai/docs/run-your-first-play) covers CLI
+installation and sign-in. Rote prepares the Calendar adapter and asks you to
+connect your own Google account. Credentials stay on your machine.
 
-Create the approved parent directory, then configure a repository you trust:
+On first run, confirm the proposed project folder, installed editor and optional
+public GitHub portfolio. Use arrow keys and Enter. Then pick an event by name.
+You can choose a local repository, clone a GitHub repository, or open event
+links. The Play remembers confirmed repository and dependency-install choices
+for future matching events. No Calendar IDs, personal URLs or repo clone are
+required to start. Missing information stays optional; the wizard lets you
+correct its guesses.
 
-```sh
-play=https://play.modiqo.ai/siiddhantt/event-workspace-setup@0.3.0
-rote play run "$play" mode=setup project_roots='["/home/me/projects"]' \
-  project=/home/me/projects/project repository_url=https://github.com/you/project \
-  install_dependencies=true editor=code browser=default
-rote play run "$play" horizon_hours=168 project=/home/me/projects/project dry_run=true
-rote play run "$play" horizon_hours=168 project=/home/me/projects/project remember=true
-```
+Append `mode=setup` to revisit preferences, `event="interview"` to filter
+events, or `dry_run=true` to preview without cloning, installing, opening apps
+or saving repo associations. First-run setup still saves preferences you
+confirm.
 
-Add `event_id=CALENDAR_EVENT_ID` to target an event; otherwise the next eligible
-event is selected. `remember=true` saves your explicit project choice for matching
-future events. A preview does not clone, install, launch or save mappings.
-Without a confident project match, the Play opens event materials and leaves
-the repo unselected. Interviews also open your saved portfolio website; other
-events fall back to Calendar details when no meeting or source email is available.
-Each plan explains its choice. To save the portfolio without changing repo settings:
+Requires Rote 0.80+, Deno, a desktop browser and an installed editor for repo
+work. Git is needed for cloning; dependency tools must be installed. Automatic
+setup supports npm, pnpm, declared Yarn versions, uv, Deno, Cargo and Go
+lockfiles. Installation can run a repository's scripts, so it asks before
+enabling it. Existing files are preserved; conflicting origins and failed
+installs stop setup.
 
-```sh
-rote play run "$play" mode=setup portfolio_url=https://you.example
-rote play run "$play" event_id=CALENDAR_EVENT_ID dry_run=true
-```
-
-Repo-free setup needs no project roots. Use `portfolio_url=none` to clear the site.
-
-Automatic installation supports npm lockfiles, pnpm, declared Yarn versions,
-uv, Deno, Cargo and Go. Other manifests need a trusted `setup_argv` JSON argument
-array. For a missing repo, detection happens after cloning. Dependency setup may
-run lifecycle scripts; email cannot authorize repositories or commands.
-
-Existing files are preserved. Mismatched origins, incomplete scans and failed
-installs stop preparation. Uncertain matches return repo choices while opening
-the available event materials. Installations run again to respect
-changed dependencies. Launch failures are reported. Settings live under your
-user config directory (`EVENT_READY_WORKSPACE_CONFIG_DIR` can override it).
-Rote traces may contain private Calendar data. Live verified on macOS; launch
-adapters also support Linux, Windows and WSL.
+Preferences live in your user config directory, outside the Play package. An
+agent without a terminal receives proposed defaults and can supply confirmed
+`settings` JSON. `EVENT_READY_WORKSPACE_INTERACTIVE=0` disables prompts
+explicitly. Rote traces may contain private Calendar data. The interactive flow
+is verified on macOS and Linux; native Windows launch support is not an
+end-to-end guarantee.

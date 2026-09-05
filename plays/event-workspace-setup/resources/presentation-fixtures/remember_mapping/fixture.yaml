@@ -1,5 +1,0 @@
-schema_version: 1
-kind: process.exec
-status: { exit: { kind: code, code: 0 }, duration_ms: 4, timeout_ms: 30000 }
-stdout: resources/presentation-fixtures/remember_mapping/stdout.json
-stderr: resources/presentation-fixtures/empty.txt

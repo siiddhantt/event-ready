@@ -10,7 +10,10 @@ async function run(
   );
   const output = await new Deno.Command(Deno.execPath(), {
     args: ["run", "--allow-all", path, ...args],
-    env: { EVENT_READY_WORKSPACE_CONFIG_DIR: configDirectory },
+    env: {
+      EVENT_READY_WORKSPACE_CONFIG_DIR: configDirectory,
+      EVENT_READY_WORKSPACE_INTERACTIVE: "0",
+    },
     stdout: "piped",
     stderr: "piped",
   }).output();
@@ -26,13 +29,18 @@ Deno.test("a missing configured repo resolves through the same parent symlink at
     const project = `${root}/alias/portfolio`;
     const configured = await run("configure.ts", [
       "setup",
-      JSON.stringify([`${root}/alias`]),
-      "code",
-      "default",
-      "",
-      "https://github.com/example/portfolio",
-      project,
-      "true",
+      JSON.stringify({
+        schema_version: 1,
+        roots: [`${root}/alias`],
+        editor: { kind: "code", command: "code" },
+        browser: "default",
+        mappings: {},
+        projects: [{
+          path: project,
+          repository_url: "https://github.com/example/portfolio",
+          install_dependencies: true,
+        }],
+      }),
     ], `${root}/config`);
     const scanned = await run(
       "scan.ts",
@@ -76,15 +84,14 @@ Deno.test("links-only interview setup needs no repo and never installs or opens 
   try {
     const configured = await run("configure.ts", [
       "setup",
-      "",
-      "code",
-      "default",
-      "",
-      "",
-      "",
-      "false",
-      "",
-      "https://portfolio.example.test/",
+      JSON.stringify({
+        schema_version: 1,
+        roots: [],
+        editor: { kind: "code", command: "code" },
+        browser: "default",
+        mappings: {},
+        portfolio_url: "https://portfolio.example.test/",
+      }),
     ], directory);
     const scan = await run("scan.ts", [JSON.stringify(configured)], directory);
     const events = [{
@@ -116,7 +123,7 @@ Deno.test("links-only interview setup needs no repo and never installs or opens 
       (launch.commands as Array<{ kind: string }>).map((c) => c.kind),
       ["browser", "browser"],
     );
-    const saved = await run("configure.ts", ["setup"], directory);
+    const saved = await run("configure.ts", ["run"], directory);
     assertEquals(
       (saved.config as Record<string, unknown>).portfolio_url,
       "https://portfolio.example.test/",
@@ -137,10 +144,13 @@ Deno.test("setup, discover, plan, dry-launch, and remember form one safe lifecyc
   );
   const configured = await run("configure.ts", [
     "setup",
-    JSON.stringify([root]),
-    "code",
-    "default",
-    "",
+    JSON.stringify({
+      schema_version: 1,
+      roots: [root],
+      editor: { kind: "code", command: "code" },
+      browser: "default",
+      mappings: {},
+    }),
   ], configDirectory);
   const scanned = await run(
     "scan.ts",
@@ -185,12 +195,27 @@ Deno.test("setup, discover, plan, dry-launch, and remember form one safe lifecyc
   assertEquals(launched.status, "preview");
   assertEquals(launched.opened, []);
   assertEquals((launched.commands as unknown[]).length, 3);
-  const remembered = await run(
-    "remember.ts",
-    [JSON.stringify(plan), project],
-    configDirectory,
+  const { saveAssociation } = await import("../lib/choose-workspace.ts");
+  const { parseConfig } = await import("../lib/config.ts");
+  const previous = Deno.env.get("EVENT_READY_WORKSPACE_CONFIG_DIR");
+  Deno.env.set("EVENT_READY_WORKSPACE_CONFIG_DIR", configDirectory);
+  try {
+    await saveAssociation(
+      parseConfig(configured.config),
+      plan,
+      plan.project as import("../lib/repositories.ts").Repository,
+      false,
+    );
+  } finally {
+    if (previous === undefined) {
+      Deno.env.delete("EVENT_READY_WORKSPACE_CONFIG_DIR");
+    } else Deno.env.set("EVENT_READY_WORKSPACE_CONFIG_DIR", previous);
+  }
+  assertEquals(
+    JSON.parse(await Deno.readTextFile(`${configDirectory}/config.json`))
+      .mappings.acme,
+    project,
   );
-  assertEquals(remembered.status, "remembered");
   await Deno.remove(root, { recursive: true });
   await Deno.remove(configDirectory, { recursive: true });
 });

@@ -8,12 +8,12 @@ import {
 
 const [configurationRaw = "", planRaw = "", dryRunRaw = "false"] = Deno.args;
 const configuration = JSON.parse(configurationRaw) as Record<string, unknown>;
-const config = parseConfig(configuration.config);
 const plan = JSON.parse(planRaw) as Record<string, unknown>;
 if (plan.status !== "ready") {
   console.log(JSON.stringify({ status: plan.status, opened: [], plan }));
   Deno.exit(0);
 }
+const config = parseConfig(configuration.config);
 const commands: LaunchRequest[] = [];
 const project = plan.project as Record<string, unknown> | null;
 if (project && typeof project.path === "string") {

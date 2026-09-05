@@ -3,7 +3,7 @@
  * @rote-frontmatter
  * ---
  * name: event-workspace-setup
- * description: Prepares an upcoming event with its matched repository and dependencies, or opens relevant meeting, portfolio and email links when no repository is associated.
+ * description: Run one public link to discover setup defaults, choose an event, and prepare its repo or useful links. Remembers confirmed choices for later runs.
  * provenance:
  *   author: siiddhantt
  * tags:
@@ -23,7 +23,7 @@
  *   - effect-local-write
  * metadata:
  *   rote_version: 0.80.0
- *   version: 0.3.0
+ *   version: 0.4.0
  *   status: released
  *   kind: atomic
  *   flow_type: parallel
@@ -78,111 +78,41 @@
  *   param_type: string
  *   required: false
  *   default: run
- *   description: Save one-time configuration or prepare the next event workspace.
+ *   description: Prepare an event, or revisit the short setup wizard.
  *   valid_values:
- *   - setup
  *   - run
- * - name: project_roots
+ *   - setup
+ * - name: event
  *   param_type: string
  *   required: false
  *   default: ''
- *   description: JSON array of approved project root directories; optional for links-only setup, or preserve saved roots when omitted.
- * - name: editor
- *   param_type: string
- *   required: false
- *   default: code
- *   description: Editor selected during setup.
- *   valid_values:
- *   - code
- *   - cursor
- *   - zed
- *   - custom
- * - name: editor_command
- *   param_type: string
- *   required: false
- *   default: ''
- *   description: User-selected executable name or absolute path when editor is custom.
- * - name: browser
- *   param_type: string
- *   required: false
- *   default: default
- *   description: External browser selected during setup.
- *   valid_values:
- *   - default
- *   - chrome
- *   - edge
- *   - firefox
- *   - safari
- * - name: calendar_id
- *   param_type: string
- *   required: false
- *   default: primary
- *   description: Google Calendar ID to read.
- * - name: horizon_hours
- *   param_type: integer
- *   required: false
- *   default: 24
- *   description: Upcoming event window from 1 to 168 hours.
- * - name: event_id
- *   param_type: string
- *   required: false
- *   default: ''
- *   description: Optional exact Calendar event ID.
+ *   description: Optional event title or ID; otherwise choose an event in the terminal.
  * - name: project
  *   param_type: string
  *   required: false
  *   default: ''
- *   description: Optional exact repository path inside an approved root.
- * - name: remember
- *   param_type: boolean
- *   required: false
- *   default: false
- *   description: Remember the explicit project override for this event's company or title.
+ *   description: Optional repository override inside your saved project folder.
  * - name: dry_run
  *   param_type: boolean
  *   required: false
  *   default: false
- *   description: Preview the exact app and link launches without opening anything.
- * - name: repository_url
+ *   description: Preview preparation without cloning, installing or opening apps.
+ * - name: settings
  *   param_type: string
  *   required: false
  *   default: ''
- *   description: GitHub HTTPS repository URL explicitly authorized during setup; never taken from email.
- * - name: install_dependencies
- *   param_type: boolean
- *   required: false
- *   default: false
- *   description: During setup, authorize dependency installation for the configured repository.
- * - name: setup_argv
- *   param_type: string
- *   required: false
- *   default: ''
- *   description: Optional JSON array of a trusted dependency setup command and arguments; otherwise use a supported lockfile.
- * - name: portfolio_url
- *   param_type: string
- *   required: false
- *   default: ''
- *   description: During setup, save your HTTPS portfolio website for interviews without an associated repo; use none to clear it.
+ *   description: Optional settings JSON for an agent or unattended setup; terminal users can leave this blank.
  * steps:
  *   configure:
  *     type: process.exec
+ *     timeout_ms: 600000
  *     argv:
  *     - deno
  *     - run
- *     - --allow-env
- *     - --allow-read
- *     - --allow-write
+ *     - --allow-all
  *     - '@resource{configure.ts}'
  *     - $mode
- *     - $project_roots
- *     - $editor
- *     - $browser
- *     - $editor_command
- *     - $repository_url
- *     - $project
- *     - $install_dependencies
- *     - $setup_argv
- *     - $portfolio_url
+ *     - $settings
  *   auth_calendar:
  *     type: adapter.auth.ensure
  *     endpoint: adapter/calendar
@@ -191,11 +121,13 @@
  *     on_unreadable: reauthorize
  *   window:
  *     type: process.exec
+ *     depends_on:
+ *     - configure
  *     argv:
  *     - deno
  *     - run
  *     - '@resource{window.ts}'
- *     - $horizon_hours
+ *     - '168'
  *     execution:
  *       mode: deferred
  *       condition:
@@ -211,10 +143,10 @@
  *     - auth_calendar
  *     - window
  *     params:
- *       calendarId: $calendar_id
+ *       calendarId: primary
  *       timeMin: '@window{.stdout.text | fromjson | .time_min}'
  *       timeMax: '@window{.stdout.text | fromjson | .time_max}'
- *       maxResults: '100'
+ *       maxResults: '2500'
  *       singleEvents: 'true'
  *       showDeleted: 'false'
  *       orderBy: startTime
@@ -246,6 +178,7 @@
  *           right: run
  *   select:
  *     type: process.exec
+ *     timeout_ms: 600000
  *     depends_on:
  *     - configure
  *     - events
@@ -253,14 +186,14 @@
  *     argv:
  *     - deno
  *     - run
- *     - --allow-read
+ *     - --allow-all
  *     - '@resource{select.ts}'
  *     - '@configure{.stdout.text}'
  *     - '@events{.}'
  *     - '@scan{.stdout.text}'
- *     - $event_id
+ *     - $event
  *     - $project
- *     - $remember
+ *     - $dry_run
  *     execution:
  *       mode: deferred
  *       condition:
@@ -317,39 +250,6 @@
  *             param: mode
  *           op: eq
  *           right: run
- *   remember_mapping:
- *     type: process.exec
- *     depends_on:
- *     - select
- *     - launch
- *     argv:
- *     - deno
- *     - run
- *     - --allow-env
- *     - --allow-read
- *     - --allow-write
- *     - '@resource{remember.ts}'
- *     - '@select{.stdout.text}'
- *     - $project
- *     execution:
- *       mode: deferred
- *       condition:
- *         all:
- *         - compare:
- *             left:
- *               param: mode
- *             op: eq
- *             right: run
- *         - compare:
- *             left:
- *               param: remember
- *             op: eq
- *             right: true
- *         - compare:
- *             left:
- *               param: dry_run
- *             op: eq
- *             right: false
  * presentation_fixtures:
  *   configure: resources/presentation-fixtures/configure/fixture.yaml
  *   window: resources/presentation-fixtures/window/fixture.yaml
@@ -358,10 +258,9 @@
  *   select: resources/presentation-fixtures/select/fixture.yaml
  *   launch: resources/presentation-fixtures/launch/fixture.yaml
  *   bootstrap: resources/presentation-fixtures/bootstrap/fixture.yaml
- *   remember_mapping: resources/presentation-fixtures/remember_mapping/fixture.yaml
  * writes:
- * - Owner-private editor, browser, approved-root, and explicit project-mapping configuration.
- * - Clones only explicitly configured repositories inside approved roots and runs their authorized dependency install commands, which may execute package lifecycle scripts.
+ * - Owner-private setup preferences and confirmed event-to-repository associations.
+ * - Clones repositories you choose inside your confirmed project folder, and installs dependencies only after your approval; this can execute package lifecycle scripts.
  * - Opens apps and HTTPS links; never joins meetings or submits forms.
  * source: https://github.com/siiddhantt/event-ready/tree/main/plays/event-workspace-setup
  * ---
@@ -381,7 +280,6 @@ const configureStep = ctx.step(stepName("configure"));
 const selectStep = ctx.step(stepName("select"));
 const launchStep = ctx.step(stepName("launch"));
 const bootstrapStep = ctx.step(stepName("bootstrap"));
-const rememberMappingStep = ctx.step(stepName("remember_mapping"));
 
 function processJson(
   step: typeof configureStep,
@@ -395,8 +293,15 @@ function processJson(
     : null;
 }
 
-if (mode === "setup") {
-  const configured = processJson(configureStep);
+const configuration = processJson(configureStep);
+if (configuration?.status === "cancelled") {
+  out.human("Cancelled. No workspace was opened.");
+  out.result({ status: "cancelled" });
+} else if (configuration?.status === "needs_setup") {
+  out.human(String(configuration.message));
+  out.result(configuration);
+} else if (mode === "setup") {
+  const configured = configuration;
   if (!configured) throw new Error("Setup receipt was unavailable");
   const config = configured.config as Record<string, unknown> | undefined;
   const roots = Array.isArray(config?.roots) ? config.roots.length : 0;
@@ -413,7 +318,7 @@ if (mode === "setup") {
   if (!selected || !launched) {
     throw new Error("Workspace preparation receipt was unavailable");
   }
-  const remembered = processJson(rememberMappingStep);
+  const remembered = selected.configuration_updated === true;
   const status = String(launched.status ?? selected.status ?? "unavailable");
   if (status === "ambiguous") {
     const choices = Array.isArray(selected.choices)
@@ -422,6 +327,10 @@ if (mode === "setup") {
     out.human(
       `Project match is ambiguous across ${choices} repositories; nothing was opened.`,
     );
+  } else if (status === "cancelled") {
+    out.human("Cancelled. No workspace was opened.");
+  } else if (status === "needs_choice") {
+    out.human("Several events match; choose an event by title or ID.");
   } else if (status === "no_event") {
     out.human("No upcoming Calendar event matched the request.");
   } else if (status === "launch_failed") {
