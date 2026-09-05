@@ -5,6 +5,7 @@ Description=Check email for events and deadlines every 15 minutes
 OnCalendar=*-*-* *:00/15:00
 Persistent=true
 RandomizedDelaySec=30
+AccuracySec=1s
 Unit=event-ready-inbox.service
 
 [Install]
