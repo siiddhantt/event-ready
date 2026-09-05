@@ -1,9 +1,21 @@
 import { basename, join } from "node:path";
-import { repositoryUrl, WorkspaceConfig, writeConfig } from "./config.ts";
+import {
+  isWithin,
+  repositoryUrl,
+  WorkspaceConfig,
+  writeConfig,
+} from "./config.ts";
 import { buildWorkspacePlan } from "./match.ts";
 import { githubWebUrl, Repository } from "./repositories.ts";
 import { Prompts } from "./terminal.ts";
 import { githubProfile } from "./onboarding.ts";
+
+import {
+  matchesEvent,
+  matchesText,
+  parseRequest,
+  SearchRequest,
+} from "./query.ts";
 
 type Event = Record<string, unknown>;
 export function eligibleEvents(
@@ -11,23 +23,64 @@ export function eligibleEvents(
   events: Event[],
   query = "",
   now = new Date(),
+  request = parseRequest(query, now),
 ): Event[] {
-  return events.filter((event) => {
-    if (typeof event.id !== "string") return false;
-    const title = typeof event.summary === "string" ? event.summary : "";
-    if (
-      query && event.id !== query &&
-      !title.toLowerCase().includes(query.toLowerCase())
-    ) return false;
-    return buildWorkspacePlan(config, [event], [], event.id, "", now).status ===
-      "ready";
-  }).sort((a, b) => {
-    const start = (e: Event) => {
-      const s = e.start as { dateTime?: string; date?: string };
-      return Date.parse(s.dateTime ?? s.date ?? "");
-    };
-    return start(a) - start(b);
-  });
+  return events.filter((event) =>
+    typeof event.id === "string" && matchesEvent(request, event) &&
+    buildWorkspacePlan(
+        config,
+        [event],
+        [],
+        String(event.id),
+        "",
+        now,
+        request.allow_past,
+      ).status === "ready"
+  )
+    .sort((a, b) => {
+      const start = (e: Event) => {
+        const s = e.start as { dateTime?: string; date?: string };
+        return Date.parse(s.dateTime ?? s.date ?? "");
+      };
+      const left = start(a), right = start(b);
+      if (request.past_first) return right - left;
+      const leftPast = left < now.getTime(), rightPast = right < now.getTime();
+      if (leftPast !== rightPast) return leftPast ? 1 : -1;
+      return leftPast ? right - left : left - right;
+    });
+}
+export function matchingRepositories(
+  repos: Repository[],
+  request: SearchRequest,
+): Repository[] {
+  return request.terms.length
+    ? repos.filter((repo) =>
+      matchesText(request, `${repo.name} ${repo.remote ?? ""}`)
+    )
+    : [];
+}
+export function repositoryPlan(
+  config: WorkspaceConfig,
+  repo: Repository | null,
+  fallback: Repository,
+): Record<string, unknown> {
+  if (repo && !isWithin(repo.path, config.roots)) {
+    throw new Error("Repository is outside approved roots");
+  }
+  const selected = repo ?? fallback;
+  return {
+    status: "ready",
+    event: { id: null, title: selected.name, source: "local_repository" },
+    mapping_key: `workspace:${selected.path}`,
+    project: repo,
+    links: selected.web_url ? [selected.web_url] : [],
+    preparation: {
+      kind: "project",
+      reason: repo
+        ? "Found this repository in your saved project folder."
+        : "Opening the repository website.",
+    },
+  };
 }
 export function eventLabel(event: Event): string {
   const start = event.start as { dateTime?: string; date?: string };
@@ -149,21 +202,53 @@ export async function chooseWorkspace(
   query: string,
   project: string,
   dryRun: boolean,
+  request = parseRequest(query),
 ): Promise<Record<string, unknown>> {
-  const available = eligibleEvents(config, events, query);
-  if (!available.length) return { status: "no_event", event_id: query || null };
-  const index = query && available.length === 1 ? 0 : await terminal.choose(
-    "Which event are you preparing for?",
-    available.map(eventLabel),
-  );
-  const selected = available[index];
-  let plan = buildWorkspacePlan(
-    config,
-    [selected],
-    repos,
-    String(selected.id),
-    project,
-  );
+  const available = request.project_only
+    ? []
+    : eligibleEvents(config, events, query, new Date(), request);
+  let selected: Event | undefined;
+  let standalone: Repository | undefined;
+  if (available.length) {
+    const index = query && available.length === 1 ? 0 : await terminal.choose(
+      "Which event do you want to open?",
+      available.map(eventLabel),
+    );
+    selected = available[index];
+  } else {
+    const matches = matchingRepositories(repos, request);
+    if (!matches.length) return { status: "no_event", request };
+    terminal.write(
+      "No Calendar event selected; found matching local projects.\n",
+    );
+    standalone = matches.length === 1 ? matches[0] : matches[
+      await terminal.choose(
+        "Which project?",
+        matches.map((r) => `${r.name} · ${r.path}`),
+      )
+    ];
+  }
+  const makePlan = (
+    cfg: WorkspaceConfig,
+    inventory: Repository[],
+    path: string,
+  ): Record<string, unknown> =>
+    standalone
+      ? repositoryPlan(
+        cfg,
+        path ? inventory.find((r) => r.path === path) ?? null : null,
+        standalone,
+      )
+      : buildWorkspacePlan(
+        cfg,
+        [selected],
+        inventory,
+        String(selected!.id),
+        path,
+        new Date(),
+        request.allow_past,
+      );
+  let plan = makePlan(config, repos, project || standalone?.path || "");
   let repo = plan.project as Repository | null;
   const approved = repo && config.projects?.some((p) => p.path === repo!.path);
   const saved = repo && config.mappings[String(plan.mapping_key)] === repo.path;
@@ -172,7 +257,7 @@ export async function chooseWorkspace(
   const options = repo
     ? [
       `Prepare ${repo.name} and remember this choice`,
-      "Open event links only",
+      standalone ? "Open repository website only" : "Open event links only",
       "Choose another local repository",
       "Clone a repository",
     ]
@@ -191,13 +276,7 @@ export async function chooseWorkspace(
     options,
   );
   if ((repo && action === 1) || (!repo && action === 0)) {
-    plan = buildWorkspacePlan(
-      { ...config, mappings: {} },
-      [selected],
-      [],
-      String(selected.id),
-      "",
-    );
+    plan = makePlan({ ...config, mappings: {} }, [], "");
     return plan;
   }
   const chooseLocal = repo ? action === 2 : action === 1;
@@ -207,13 +286,7 @@ export async function chooseWorkspace(
       terminal.write(
         "No local repositories were found; opening event materials.\n",
       );
-      return buildWorkspacePlan(
-        config,
-        [selected],
-        [],
-        String(selected.id),
-        "",
-      );
+      return makePlan(config, [], "");
     }
     repo = repos[
       await terminal.choose(
@@ -223,7 +296,7 @@ export async function chooseWorkspace(
     ];
   } else if (chooseClone) repo = await cloneChoice(terminal, config);
   if (!repo) {
-    return buildWorkspacePlan(config, [selected], [], String(selected.id), "");
+    return makePlan(config, [], "");
   }
   let install =
     config.projects?.find((p) => p.path === repo!.path)?.install_dependencies ??
@@ -245,13 +318,7 @@ export async function chooseWorkspace(
       ],
     );
     if (action === 2) {
-      return buildWorkspacePlan(
-        config,
-        [selected],
-        [],
-        String(selected.id),
-        "",
-      );
+      return makePlan(config, [], "");
     }
     install = action === 0;
   } else if (!supportedOrigin) {
@@ -259,11 +326,9 @@ export async function chooseWorkspace(
       "Opening this local repository without dependency installation (no GitHub origin).\n",
     );
   }
-  plan = buildWorkspacePlan(
+  plan = makePlan(
     config,
-    [selected],
     [...repos.filter((r) => r.path !== repo!.path), repo],
-    String(selected.id),
     repo.path,
   );
   const preparationConfig = structuredClone(config);
@@ -274,7 +339,7 @@ export async function chooseWorkspace(
     kind: "project",
     reason: dryRun
       ? "Previewing your selected repository; no association saved."
-      : "Saved this event's repository and preparation preference for future runs.",
+      : "Saved this repository and preparation preference for future runs.",
   };
   return plan;
 }

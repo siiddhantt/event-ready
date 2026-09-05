@@ -1,25 +1,30 @@
 # Event Workspace Setup
 
-Choose a Calendar event. Prepare its project, or open its meeting, source email,
-Calendar details and (for interviews) your portfolio.
+Ask for an event or project by name. Prepare its repository, or open its meeting,
+source email, Calendar details and (for interviews) your portfolio.
 
 ```sh
 rote play run https://play.modiqo.ai/siiddhantt/event-workspace-setup
 ```
 
 New to Rote? Start with the
-[install link](https://play.modiqo.ai/install?play=siiddhantt/event-workspace-setup@0.4.0).
+[install link](https://play.modiqo.ai/install?play=siiddhantt/event-workspace-setup@0.5.0).
 The [official guide](https://www.modiqo.ai/docs/run-your-first-play) covers CLI
 installation and sign-in. Rote prepares the Calendar adapter and asks you to
 connect your own Google account. Credentials stay on your machine.
 
 On first run, confirm the proposed project folder, installed editor and optional
-public GitHub portfolio. Use arrow keys and Enter. Then pick an event by name.
-You can choose a local repository, clone a GitHub repository, or open event
-links. The Play remembers confirmed repository and dependency-install choices
-for future matching events. No Calendar IDs, personal URLs or repo clone are
-required to start. Missing information stays optional; the wizard lets you
-correct its guesses.
+public GitHub portfolio. Use arrow keys and Enter. Then type a request, or press
+Enter for upcoming events. You can choose a local repository, clone a GitHub
+repository, or open event links. The Play remembers confirmed repository and
+dependency-install choices for future matching events. No Calendar IDs, personal
+URLs or repo clone are required to start. Missing information stays optional;
+the wizard lets you correct its guesses.
+
+Try `whatever is today`, `that galaxy ai project`, or `OLake January 2026`.
+Search reads your primary Calendar and approved project folders on each run.
+Names and common date phrases work; ambiguous matches get a picker. Older
+meetings must still exist in Calendar. This is name/date search, not a chatbot.
 
 Append `mode=setup` to revisit preferences, `event="interview"` to filter
 events, or `dry_run=true` to preview without cloning, installing, opening apps

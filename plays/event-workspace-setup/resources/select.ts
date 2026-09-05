@@ -2,8 +2,14 @@ import { parseConfig } from "./lib/config.ts";
 import { buildWorkspacePlan } from "./lib/match.ts";
 import { Repository } from "./lib/repositories.ts";
 import { basename, dirname, join, resolve } from "node:path";
+import { parseRequest, SearchRequest } from "./lib/query.ts";
 import { PromptCancelled, Terminal } from "./lib/terminal.ts";
-import { chooseWorkspace, eligibleEvents } from "./lib/choose-workspace.ts";
+import {
+  chooseWorkspace,
+  eligibleEvents,
+  matchingRepositories,
+  repositoryPlan,
+} from "./lib/choose-workspace.ts";
 
 const [
   configurationRaw = "",
@@ -12,10 +18,19 @@ const [
   eventId = "",
   project = "",
   dryRun = "false",
+  requestRaw = "",
 ] = Deno.args;
+const request: SearchRequest = requestRaw
+  ? JSON.parse(requestRaw)
+  : parseRequest(eventId);
 const wrapper = JSON.parse(configurationRaw) as Record<string, unknown>;
-if (wrapper.status === "needs_setup" || wrapper.status === "cancelled") {
-  console.log(JSON.stringify(wrapper));
+if (
+  wrapper.status === "needs_setup" || wrapper.status === "cancelled" ||
+  request.status
+) {
+  console.log(
+    JSON.stringify({ ...wrapper, status: request.status ?? wrapper.status }),
+  );
   Deno.exit(0);
 }
 const config = parseConfig(wrapper.config);
@@ -23,10 +38,11 @@ const eventsResponse = JSON.parse(eventsRaw) as unknown;
 if (
   eventsResponse && !Array.isArray(eventsResponse) &&
   typeof eventsResponse === "object" &&
+  !request.project_only &&
   (eventsResponse as Record<string, unknown>).nextPageToken
 ) {
   throw new Error(
-    "Calendar returned more than 2500 events this week; use a less crowded primary calendar",
+    "Calendar results are incomplete. Add a date or a more specific name to your request; nothing was opened.",
   );
 }
 const events =
@@ -73,6 +89,7 @@ if (terminal) {
       eventId,
       projectPath,
       dryRun === "true",
+      request,
     );
   } catch (error) {
     if (!(error instanceof PromptCancelled)) throw error;
@@ -81,30 +98,36 @@ if (terminal) {
     terminal.close();
   }
 } else if (eventId) {
-  const matches = eligibleEvents(config, events, eventId);
-  plan = matches.length > 1
-    ? {
+  const matches = request.project_only
+    ? []
+    : eligibleEvents(config, events, eventId, new Date(), request);
+  const repoMatches = matches.length
+    ? []
+    : matchingRepositories(repositories, request);
+  if (matches.length > 1 || repoMatches.length > 1) {
+    plan = {
       status: "needs_choice",
-      choices: matches.map((e) => ({
-        id: e.id,
-        title: e.summary,
-        start: e.start,
-      })),
-    }
-    : buildWorkspacePlan(
+      choices: matches.length
+        ? matches.map((e) => ({ id: e.id, title: e.summary, start: e.start }))
+        : repoMatches.map((r) => ({ project: r.path, title: r.name })),
+    };
+  } else if (repoMatches.length === 1) {
+    plan = repositoryPlan(config, repoMatches[0], repoMatches[0]);
+  } else {
+    plan = buildWorkspacePlan(
       config,
       matches,
       repositories,
       String(matches[0]?.id ?? eventId),
       projectPath,
+      new Date(),
+      request.allow_past,
     );
-} else {plan = buildWorkspacePlan(
-    config,
-    events,
-    repositories,
-    eventId,
-    projectPath,
-  );}
+  }
+} else {
+  plan = buildWorkspacePlan(config, events, repositories, eventId, projectPath);
+}
+plan.request = request;
 console.log(
   JSON.stringify({
     ...plan,

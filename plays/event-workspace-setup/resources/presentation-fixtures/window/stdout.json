@@ -1,4 +1,12 @@
 {
+  "raw": "Acme interview 2026-09-04",
+  "terms": ["acme", "interview"],
   "time_min": "2026-09-04T06:00:00.000Z",
-  "time_max": "2026-09-05T06:00:00.000Z"
+  "time_max": "2026-09-05T06:00:00.000Z",
+  "search_text": "acme interview",
+  "allow_past": true,
+  "past_first": true,
+  "project_only": false,
+  "meeting_only": false,
+  "label": "2026-09-04"
 }

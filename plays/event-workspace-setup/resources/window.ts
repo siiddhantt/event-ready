@@ -1,12 +1,38 @@
-const [hoursRaw = "24"] = Deno.args;
-const hours = Number(hoursRaw);
-if (!Number.isInteger(hours) || hours < 1 || hours > 168) {
-  throw new Error("horizon_hours must be an integer from 1 to 168");
+import { parseRequest } from "./lib/query.ts";
+import { PromptCancelled, Terminal } from "./lib/terminal.ts";
+const [raw = "", configuration = "{}"] = Deno.args;
+const status = JSON.parse(configuration).status;
+let request = parseRequest(raw);
+if (status === "cancelled" || status === "needs_setup") request.status = status;
+else if (!raw) {
+  const terminal = Terminal.open();
+  if (terminal) {
+    try {
+      terminal.write(
+        "\nTry: whatever is today · that galaxy ai project · Faff last month\n",
+      );
+      while (true) {
+        const answer = await terminal.ask(
+          "What do you want to open? (Enter: upcoming events)",
+        );
+        try {
+          request = parseRequest(answer);
+          terminal.write(
+            `Searching ${request.label.toLowerCase()}${
+              request.search_text ? ` for ${request.search_text}` : ""
+            }.\n`,
+          );
+          break;
+        } catch (error) {
+          terminal.write(`${(error as Error).message}\n`);
+        }
+      }
+    } catch (error) {
+      if (!(error instanceof PromptCancelled)) throw error;
+      request.status = "cancelled";
+    } finally {
+      terminal.close();
+    }
+  }
 }
-const now = new Date();
-console.log(
-  JSON.stringify({
-    time_min: now.toISOString(),
-    time_max: new Date(now.getTime() + hours * 3600_000).toISOString(),
-  }),
-);
+console.log(JSON.stringify(request));

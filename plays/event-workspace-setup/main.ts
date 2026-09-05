@@ -3,7 +3,7 @@
  * @rote-frontmatter
  * ---
  * name: event-workspace-setup
- * description: Run one public link to discover setup defaults, choose an event, and prepare its repo or useful links. Remembers confirmed choices for later runs.
+ * description: Ask for today, an older meeting or a project by name. Finds Calendar events and local repositories, prepares their workspace or links, and remembers confirmed choices.
  * provenance:
  *   author: siiddhantt
  * tags:
@@ -23,7 +23,7 @@
  *   - effect-local-write
  * metadata:
  *   rote_version: 0.80.0
- *   version: 0.4.0
+ *   version: 0.5.0
  *   status: released
  *   kind: atomic
  *   flow_type: parallel
@@ -86,7 +86,7 @@
  *   param_type: string
  *   required: false
  *   default: ''
- *   description: Optional event title or ID; otherwise choose an event in the terminal.
+ *   description: Optional request, such as whatever is today, Faff last month, or that galaxy ai project; otherwise ask in the terminal.
  * - name: project
  *   param_type: string
  *   required: false
@@ -121,13 +121,16 @@
  *     on_unreadable: reauthorize
  *   window:
  *     type: process.exec
+ *     timeout_ms: 600000
  *     depends_on:
  *     - configure
  *     argv:
  *     - deno
  *     - run
+ *     - --allow-all
  *     - '@resource{window.ts}'
- *     - '168'
+ *     - $event
+ *     - '@configure{.stdout.text}'
  *     execution:
  *       mode: deferred
  *       condition:
@@ -144,6 +147,7 @@
  *     - window
  *     params:
  *       calendarId: primary
+ *       q: '@window{.stdout.text | fromjson | .search_text}'
  *       timeMin: '@window{.stdout.text | fromjson | .time_min}'
  *       timeMax: '@window{.stdout.text | fromjson | .time_max}'
  *       maxResults: '2500'
@@ -191,9 +195,10 @@
  *     - '@configure{.stdout.text}'
  *     - '@events{.}'
  *     - '@scan{.stdout.text}'
- *     - $event
+ *     - '@window{.stdout.text | fromjson | .raw}'
  *     - $project
  *     - $dry_run
+ *     - '@window{.stdout.text}'
  *     execution:
  *       mode: deferred
  *       condition:
@@ -332,7 +337,9 @@ if (configuration?.status === "cancelled") {
   } else if (status === "needs_choice") {
     out.human("Several events match; choose an event by title or ID.");
   } else if (status === "no_event") {
-    out.human("No upcoming Calendar event matched the request.");
+    out.human(
+      "No Calendar event or local repository matched. Try a shorter name or a date such as 2025-09-01.",
+    );
   } else if (status === "launch_failed") {
     out.human("The event was selected, but no configured app could be opened.");
   } else if (status === "nothing_to_open") {

@@ -85,6 +85,27 @@ function conferenceUrl(value: unknown): string | null {
   return null;
 }
 
+function describedMeeting(event: CalendarEvent): string | null {
+  const material = `${text(event.location) ?? ""} ${
+    text(event.description) ?? ""
+  }`.replaceAll("&amp;", "&");
+  for (const candidate of material.match(/https:\/\/[^\s<>"']+/g) ?? []) {
+    const url = safeHttps(candidate.replace(/[),.;]+$/, ""));
+    if (!url) continue;
+    const host = new URL(url).hostname;
+    if (
+      [
+        "meet.google.com",
+        "zoom.us",
+        "teams.microsoft.com",
+        "teams.live.com",
+        "webex.com",
+      ].some((domain) => host === domain || host.endsWith(`.${domain}`))
+    ) return url;
+  }
+  return null;
+}
+
 function isRelevant(event: CalendarEvent): boolean {
   const values = privateValues(event);
   const suiteOwned = Object.keys(values).some((key) =>
@@ -100,6 +121,7 @@ function scoreRepository(
   mappedPath: string | null,
 ): number {
   if (mappedPath === repo.path) return 100;
+  if (hints.includes(repo.name.toLowerCase())) return 6;
   const haystack = `${repo.name} ${repo.remote ?? ""}`.toLowerCase();
   return hints.reduce(
     (score, hint) =>
@@ -118,6 +140,7 @@ export function buildWorkspacePlan(
   eventId: string,
   projectOverride: string,
   now = new Date(),
+  allowPast = false,
 ): Record<string, unknown> {
   const events = Array.isArray(eventsValue)
     ? eventsValue as CalendarEvent[]
@@ -128,7 +151,7 @@ export function buildWorkspacePlan(
       privateValues(event).eventReadyStatus !== "cancelled" &&
       privateValues(event).eventReadyStatus !== "needs_confirmation" &&
       eventStart(event) !== null &&
-      (eventStart(event)! >= now.getTime() || (() => {
+      (allowPast || eventStart(event)! >= now.getTime() || (() => {
         const end = event.end as
           | { dateTime?: string; date?: string }
           | undefined;
@@ -167,14 +190,15 @@ export function buildWorkspacePlan(
         right.score - left.score || left.path.localeCompare(right.path)
       );
     if (
-      candidates[0] && candidates[0].score >= 2 &&
+      candidates[0] && candidates[0].score >= 6 &&
       (!candidates[1] || candidates[0].score - candidates[1].score >= 2)
     ) {
       chosen = candidates[0];
     }
   }
   const meetingUrl = safeHttps(values.eventReadyMeetingUrl) ??
-    safeHttps(selected.hangoutLink) ?? conferenceUrl(selected.conferenceData);
+    safeHttps(selected.hangoutLink) ?? conferenceUrl(selected.conferenceData) ??
+    describedMeeting(selected);
   const sourceMessage = text(values.eventReadySourceThread) ||
     text(values.eventReadySourceMessage);
   const sourceEmailUrl = sourceMessage

@@ -6,7 +6,7 @@ Calendar events, then prepare the right workspace when it is time to act.
 | Play | Purpose |
 | --- | --- |
 | [Inbox Event Router · 0.3.1](https://play.modiqo.ai/siiddhantt/inbox-event-router@0.3.1) | Review new Gmail messages, create or update private events and reminders, and retain a resumable cursor and searchable history. |
-| [Event Workspace Setup · 0.4.0](https://play.modiqo.ai/siiddhantt/event-workspace-setup@0.4.0) | A short terminal wizard discovers your defaults, prepares an event’s repository or useful links, and remembers your choices. |
+| [Event Workspace Setup · 0.5.0](https://play.modiqo.ai/siiddhantt/event-workspace-setup@0.5.0) | A short terminal wizard discovers your defaults, prepares an event’s repository or useful links, and remembers your choices. |
 
 Works with interviews, appointments, submission deadlines and other events.
 No repository clone is needed to run either published Play.
@@ -36,12 +36,14 @@ authentication and systemd units live outside this repository.
 rote play run https://play.modiqo.ai/siiddhantt/event-workspace-setup
 ```
 
-Confirm discovered defaults once, then choose an event with the arrow keys.
+Confirm discovered defaults once, then ask for `whatever is today`, a named
+project, or an older meeting such as `OLake January 2026`. Use the arrow keys
+when several results match.
 Choose a local repo or clone one, approve dependency installation, and the Play
 remembers the association. Events without a repo open useful links; interviews
 can include a portfolio discovered from your public GitHub profile.
 
-New machine: use the [install link](https://play.modiqo.ai/install?play=siiddhantt/event-workspace-setup@0.4.0).
+New machine: use the [install link](https://play.modiqo.ai/install?play=siiddhantt/event-workspace-setup@0.5.0).
 Rote handles provider sign-in. Append `mode=setup` to change preferences or
 `dry_run=true` to preview. [Package details](plays/event-workspace-setup/resources/README.md)
 cover supported tools and agent use.
