@@ -182,13 +182,26 @@ export function buildWorkspacePlan(
       encodeURIComponent(sourceMessage)
     }`
     : null;
+  const calendarUrl = safeHttps(selected.htmlLink);
+  const interview = values.eventReadyKind === "interview" ||
+    (!text(values.eventReadyKind) && /\binterview\b/i.test(title));
+  const portfolio = !chosen && interview
+    ? safeHttps(config.portfolio_url)
+    : null;
   const links = [
     ...new Set(
-      [meetingUrl, chosen?.web_url ?? null, sourceEmailUrl].filter((
+      [meetingUrl, chosen?.web_url ?? portfolio, sourceEmailUrl].filter((
         value,
       ): value is string => typeof value === "string"),
     ),
   ];
+  // Calendar is the useful fallback when there is no more direct event material.
+  if (
+    !chosen && !meetingUrl && !sourceEmailUrl && calendarUrl &&
+    !links.includes(calendarUrl)
+  ) {
+    links.push(calendarUrl);
+  }
   const event = {
     id: text(selected.id),
     title,
@@ -196,17 +209,37 @@ export function buildWorkspacePlan(
     end: selected.end ?? null,
     company: company || null,
     meeting_url: meetingUrl,
-    calendar_url: safeHttps(selected.htmlLink),
+    calendar_url: calendarUrl,
     source_email_url: sourceEmailUrl,
   };
-  if (!chosen && candidates.length > 0) {
-    return {
-      status: "ambiguous",
-      event,
-      mapping_key: key,
-      choices: candidates.slice(0, 5),
-      links: [],
-    };
-  }
-  return { status: "ready", event, mapping_key: key, project: chosen, links };
+  const reason = chosen
+    ? projectOverride
+      ? "Using your selected repository."
+      : mappedPath === chosen.path
+      ? "Using the saved repository association."
+      : "Found a clear repository match for this event."
+    : [
+      candidates.length
+        ? "The repository match is uncertain."
+        : "No associated repository was found.",
+      portfolio
+        ? "Opening interview materials and your saved portfolio website."
+        : links.length
+        ? "Opening the available event materials."
+        : "No meeting, source email or Calendar link is available to open.",
+    ].join(" ");
+  return {
+    status: "ready",
+    event,
+    mapping_key: key,
+    project: chosen,
+    links,
+    preparation: {
+      kind: chosen ? "project" : interview ? "interview" : "event",
+      reason,
+    },
+    ...(!chosen && candidates.length
+      ? { choices: candidates.slice(0, 5) }
+      : {}),
+  };
 }

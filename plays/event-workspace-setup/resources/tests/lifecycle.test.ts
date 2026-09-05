@@ -71,6 +71,61 @@ Deno.test("a missing configured repo resolves through the same parent symlink at
   }
 });
 
+Deno.test("links-only interview setup needs no repo and never installs or opens an editor", async () => {
+  const directory = await Deno.makeTempDir();
+  try {
+    const configured = await run("configure.ts", [
+      "setup",
+      "",
+      "code",
+      "default",
+      "",
+      "",
+      "",
+      "false",
+      "",
+      "https://portfolio.example.test/",
+    ], directory);
+    const scan = await run("scan.ts", [JSON.stringify(configured)], directory);
+    const events = [{
+      id: "interview",
+      summary: "Engineering interview",
+      start: { dateTime: new Date(Date.now() + 3600_000).toISOString() },
+      hangoutLink: "https://meet.google.com/abc-defg-hij",
+    }];
+    const plan = await run("select.ts", [
+      JSON.stringify(configured),
+      JSON.stringify(events),
+      JSON.stringify(scan),
+      "interview",
+      "",
+    ], directory);
+    assertEquals(plan.project, null);
+    const bootstrap = await run("bootstrap.ts", [
+      JSON.stringify(configured),
+      JSON.stringify(plan),
+      "false",
+    ], directory);
+    assertEquals(bootstrap, { status: "not_requested", commands: [] });
+    const launch = await run("launch.ts", [
+      JSON.stringify(configured),
+      JSON.stringify(plan),
+      "true",
+    ], directory);
+    assertEquals(
+      (launch.commands as Array<{ kind: string }>).map((c) => c.kind),
+      ["browser", "browser"],
+    );
+    const saved = await run("configure.ts", ["setup"], directory);
+    assertEquals(
+      (saved.config as Record<string, unknown>).portfolio_url,
+      "https://portfolio.example.test/",
+    );
+  } finally {
+    await Deno.remove(directory, { recursive: true });
+  }
+});
+
 Deno.test("setup, discover, plan, dry-launch, and remember form one safe lifecycle", async () => {
   const root = await Deno.realPath(await Deno.makeTempDir());
   const configDirectory = await Deno.makeTempDir();

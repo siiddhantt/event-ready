@@ -3,7 +3,7 @@
  * @rote-frontmatter
  * ---
  * name: event-workspace-setup
- * description: Selects an upcoming Calendar event, clones an explicitly configured missing repository, installs its locked dependencies, and opens the correct editor and event links inside approved roots.
+ * description: Prepares an upcoming event with its matched repository and dependencies, or opens relevant meeting, portfolio and email links when no repository is associated.
  * provenance:
  *   author: siiddhantt
  * tags:
@@ -23,7 +23,7 @@
  *   - effect-local-write
  * metadata:
  *   rote_version: 0.80.0
- *   version: 0.2.2
+ *   version: 0.3.0
  *   status: released
  *   kind: atomic
  *   flow_type: parallel
@@ -86,7 +86,7 @@
  *   param_type: string
  *   required: false
  *   default: ''
- *   description: JSON array of approved project root directories, required only for setup.
+ *   description: JSON array of approved project root directories; optional for links-only setup, or preserve saved roots when omitted.
  * - name: editor
  *   param_type: string
  *   required: false
@@ -158,6 +158,11 @@
  *   required: false
  *   default: ''
  *   description: Optional JSON array of a trusted dependency setup command and arguments; otherwise use a supported lockfile.
+ * - name: portfolio_url
+ *   param_type: string
+ *   required: false
+ *   default: ''
+ *   description: During setup, save your HTTPS portfolio website for interviews without an associated repo; use none to clear it.
  * steps:
  *   configure:
  *     type: process.exec
@@ -177,6 +182,7 @@
  *     - $project
  *     - $install_dependencies
  *     - $setup_argv
+ *     - $portfolio_url
  *   auth_calendar:
  *     type: adapter.auth.ensure
  *     endpoint: adapter/calendar
@@ -441,6 +447,8 @@ if (mode === "setup") {
     );
   }
   out.summary(`Event workspace: ${status}`);
+  const preparation = selected.preparation as { reason?: string } | undefined;
+  if (preparation?.reason) out.human(preparation.reason);
   out.result({
     setup: processJson(bootstrapStep),
     status,

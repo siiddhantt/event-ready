@@ -16,11 +16,11 @@ function parseRoots(raw: string): string[] {
     values = raw.split(/\r?\n|;/).map((value) => value.trim()).filter(Boolean);
   }
   if (
-    !Array.isArray(values) || values.length === 0 || values.length > 10 ||
+    !Array.isArray(values) || values.length > 10 ||
     !values.every((value) => typeof value === "string")
   ) {
     throw new Error(
-      "project_roots must be a JSON array containing 1 to 10 paths",
+      "project_roots must be a JSON array containing at most 10 paths",
     );
   }
   return values as string[];
@@ -41,6 +41,7 @@ const [
   projectRaw = "",
   installRaw = "false",
   setupArgvRaw = "",
+  portfolioRaw = "",
 ] = Deno.args;
 if (mode === "run") {
   console.log(JSON.stringify({ status: "ready", config: await readConfig() }));
@@ -48,7 +49,10 @@ if (mode === "run") {
 }
 if (mode !== "setup") throw new Error("mode must be setup or run");
 const roots: string[] = [];
-for (const candidate of parseRoots(rootsRaw)) {
+const existing = await readConfig().catch(() => null);
+for (
+  const candidate of rootsRaw ? parseRoots(rootsRaw) : existing?.roots ?? []
+) {
   const real = await Deno.realPath(candidate);
   const info = await Deno.stat(real);
   if (!info.isDirectory) {
@@ -68,7 +72,6 @@ const browsers = new Set(["default", "chrome", "edge", "firefox", "safari"]);
 if (!browsers.has(browserRaw)) {
   throw new Error("browser must be default, chrome, edge, firefox, or safari");
 }
-const existing = await readConfig().catch(() => null);
 const config: WorkspaceConfig = {
   schema_version: 1,
   roots: [...new Set(roots)],
@@ -76,8 +79,12 @@ const config: WorkspaceConfig = {
   browser: browserRaw as WorkspaceConfig["browser"],
   mappings: existing?.mappings ?? {},
   projects: existing?.projects ?? [],
+  portfolio_url: portfolioRaw || existing?.portfolio_url,
 };
 if (repositoryRaw) {
+  if (!roots.length) {
+    throw new Error("A repository requires an approved project root");
+  }
   const repository = repositoryUrl(repositoryRaw);
   const name = new URL(repository).pathname.split("/").at(-1)!.replace(
     /\.git$/,

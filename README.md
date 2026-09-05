@@ -6,7 +6,7 @@ Calendar events, then prepare the right workspace when it is time to act.
 | Play | Purpose |
 | --- | --- |
 | [Inbox Event Router · 0.3.1](https://play.modiqo.ai/siiddhantt/inbox-event-router@0.3.1) | Review new Gmail messages, create or update private events and reminders, and retain a resumable cursor and searchable history. |
-| [Event Workspace Setup · 0.2.2](https://play.modiqo.ai/siiddhantt/event-workspace-setup@0.2.2) | Choose an upcoming or ongoing event, clone a configured missing repo, install dependencies, and open its editor and links. |
+| [Event Workspace Setup · 0.3.0](https://play.modiqo.ai/siiddhantt/event-workspace-setup@0.3.0) | Choose an upcoming or ongoing event, clone a configured missing repo, install dependencies, and open its editor and links. |
 
 Works with interviews, appointments, submission deadlines and other events.
 No repository clone is needed to run either published Play.
@@ -37,7 +37,7 @@ repository you trust; dependency installation can execute its lifecycle scripts.
 Create the parent directory first and replace these example paths and URL:
 
 ```sh
-play=https://play.modiqo.ai/siiddhantt/event-workspace-setup@0.2.2
+play=https://play.modiqo.ai/siiddhantt/event-workspace-setup@0.3.0
 rote play run "$play" mode=setup project_roots='["/home/me/projects"]' \
   project=/home/me/projects/project repository_url=https://github.com/you/project \
   install_dependencies=true editor=code browser=default
@@ -47,7 +47,9 @@ rote play run "$play" horizon_hours=168 project=/home/me/projects/project rememb
 
 Add `event_id=CALENDAR_EVENT_ID` to select a particular event. Otherwise the Play
 selects the next eligible event. [Package instructions](plays/event-workspace-setup/resources/README.md)
-cover account setup, dependency support and saved mappings.
+cover account setup, dependency support and saved mappings. With no clear repo
+match, the Play opens useful event links. Save `portfolio_url=https://you.example`
+during setup to include your portfolio website for interviews.
 
 ## Development
 

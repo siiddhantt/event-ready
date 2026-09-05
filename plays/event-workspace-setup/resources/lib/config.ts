@@ -12,6 +12,7 @@ export type WorkspaceConfig = {
   browser: "default" | "chrome" | "edge" | "firefox" | "safari";
   mappings: Record<string, string>;
   projects?: ProjectSetup[];
+  portfolio_url?: string;
 };
 
 function homeDirectory(): string {
@@ -95,7 +96,22 @@ export function parseConfig(value: unknown): WorkspaceConfig {
     browser: item.browser as WorkspaceConfig["browser"],
     mappings,
     projects: parseProjects(item.projects),
+    portfolio_url: portfolioUrl(item.portfolio_url),
   };
+}
+
+export function portfolioUrl(value: unknown): string | undefined {
+  if (
+    value === undefined || value === null || value === "" || value === "none"
+  ) return undefined;
+  if (typeof value !== "string") {
+    throw new Error("portfolio_url must be an HTTPS URL");
+  }
+  const url = new URL(value);
+  if (url.protocol !== "https:" || url.username || url.password) {
+    throw new Error("portfolio_url must be a credential-free HTTPS URL");
+  }
+  return url.toString();
 }
 
 export function repositoryUrl(raw: string): string {

@@ -1,4 +1,4 @@
-import { WorkspaceConfig } from "../lib/config.ts";
+import { parseConfig, WorkspaceConfig } from "../lib/config.ts";
 import { buildWorkspacePlan } from "../lib/match.ts";
 import { Repository } from "../lib/repositories.ts";
 import { assertEquals, assertThrows } from "./assert.ts";
@@ -78,8 +78,9 @@ Deno.test("does not guess between equal repositories", () => {
     "",
     new Date("2026-09-01T00:00:00Z"),
   );
-  assertEquals(result.status, "ambiguous");
-  assertEquals(result.links, []);
+  assertEquals(result.status, "ready");
+  assertEquals(result.project, null);
+  assertEquals(result.links, ["https://meet.google.com/abc-defg-hij"]);
 });
 
 Deno.test("returns choices when the leading match is not decisive", () => {
@@ -105,8 +106,87 @@ Deno.test("returns choices when the leading match is not decisive", () => {
     "",
     new Date("2026-09-01T00:00:00Z"),
   );
-  assertEquals(result.status, "ambiguous");
+  assertEquals(result.status, "ready");
+  assertEquals(result.project, null);
   assertEquals((result.choices as unknown[]).length, 2);
+});
+
+Deno.test("an interview without a repo opens the configured website and event materials", () => {
+  const result = buildWorkspacePlan(
+    { ...config, portfolio_url: "https://portfolio.example.test/" },
+    [event],
+    [repos[1]],
+    "",
+    "",
+    new Date("2026-09-01T00:00:00Z"),
+  );
+  assertEquals(result.project, null);
+  assertEquals(result.links, [
+    "https://meet.google.com/abc-defg-hij",
+    "https://portfolio.example.test/",
+    "https://mail.google.com/mail/u/0/#all/thread-1",
+  ]);
+  assertEquals(
+    (result.preparation as Record<string, unknown>).kind,
+    "interview",
+  );
+});
+
+Deno.test("a known repo takes precedence over an interview portfolio fallback", () => {
+  const result = buildWorkspacePlan(
+    {
+      ...config,
+      portfolio_url: "https://portfolio.example.test/",
+      mappings: { acme: "/projects/website" },
+    },
+    [event],
+    repos,
+    "",
+    "",
+    new Date("2026-09-01T00:00:00Z"),
+  );
+  assertEquals((result.project as Repository).path, "/projects/website");
+  assertEquals(result.links, [
+    "https://meet.google.com/abc-defg-hij",
+    "https://mail.google.com/mail/u/0/#all/thread-1",
+  ]);
+});
+
+Deno.test("other events use Calendar details without opening an interview portfolio", () => {
+  const result = buildWorkspacePlan(
+    { ...config, portfolio_url: "https://portfolio.example.test/" },
+    [{
+      ...event,
+      summary: "Dentist appointment",
+      hangoutLink: undefined,
+      htmlLink: "https://calendar.google.com/calendar/event?eid=demo",
+      extendedProperties: { private: { eventReadyKind: "appointment" } },
+    }],
+    [],
+    "",
+    "",
+    new Date("2026-09-01T00:00:00Z"),
+  );
+  assertEquals(result.project, null);
+  assertEquals(result.links, [
+    "https://calendar.google.com/calendar/event?eid=demo",
+  ]);
+});
+
+Deno.test("portfolio configuration rejects executable and credential-bearing URLs", () => {
+  for (
+    const portfolio_url of [
+      "javascript:alert(1)",
+      "file:///private/file",
+      "https://user:secret@example.test",
+    ]
+  ) {
+    assertThrows(() => parseConfig({ ...config, portfolio_url }), "HTTPS");
+  }
+  assertEquals(
+    parseConfig({ ...config, portfolio_url: "none" }).portfolio_url,
+    undefined,
+  );
 });
 
 Deno.test("skips unrelated Calendar entries during automatic selection", () => {
